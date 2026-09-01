@@ -1,0 +1,30 @@
+{
+  "name": "openremote",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "dev:relay": "bun run --cwd apps/relay dev",
+    "dev:host": "bun run --cwd apps/host dev",
+    "dev:web": "bun run --cwd apps/web dev",
+    "build": "bun run --filter '*' build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "check": "bun run scripts/check.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@openremote/protocol": "workspace:*",
+    "@openremote/agent-adapters": "workspace:*"
+  }
+}

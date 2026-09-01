@@ -1,0 +1,27 @@
+{
+  "name": "@openremote/host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "openremote-host": "src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "host": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "build": "echo 'run with bun (no bundle step for V0)'"
+  },
+  "dependencies": {
+    "@openremote/protocol": "workspace:*",
+    "@openremote/agent-adapters": "workspace:*",
+    "@opencode-ai/sdk": "1.18.25",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@openremote/relay": "workspace:*"
+  }
+}
