@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import type { HarnessAdapter } from "@openremote/agent-adapters"
 import { MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
-import type { HostInfo } from "@openremote/protocol"
+import { AblyTransport, type HostInfo, pairingChannel } from "@openremote/protocol"
+import { nodeRealtimeCtor } from "@openremote/protocol/ably-node"
 import { type HostConfig, loadConfig } from "./config.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
 import { RelayConnection } from "./relay-connection.js"
@@ -40,9 +41,14 @@ function printBanner(config: HostConfig, info: HostInfo, pairingToken: string): 
   console.log("")
   console.log("  OpenRemote Host")
   console.log("")
-  console.log(`  Device:  ${info.name}`)
-  console.log(`  Adapter: ${info.adapter}`)
-  console.log(`  Relay:   ${config.relayUrl}`)
+  console.log(`  Device:    ${info.name}`)
+  console.log(`  Adapter:   ${info.adapter}`)
+  console.log(`  Transport: ${config.transport}`)
+  console.log(
+    config.transport === "ably"
+      ? "  Ably:      connected via control channel"
+      : `  Relay:     ${config.relayUrl}`,
+  )
   console.log("")
   console.log("  Pair this device:")
   console.log("")
@@ -70,6 +76,21 @@ async function main(): Promise<void> {
 
   printBanner(config, hostInfo(), identity.pairingToken)
 
+  // Transport selection: local relay WebSocket (default) or Ably (dumb pipe).
+  // Over Ably there is no relay — host and clients meet on a shared control
+  // channel scoped to this host, so the host publishes/subscribes there.
+  const createTransport =
+    config.transport === "ably"
+      ? () =>
+          new AblyTransport({
+            // Phase 1 rendezvous: host + paired client meet on the token channel.
+            channel: pairingChannel(identity.pairingToken),
+            apiKey: config.ablyApiKey,
+            clientId: `host:${identity.deviceId}`,
+            RealtimeImpl: nodeRealtimeCtor(),
+          })
+      : undefined // undefined → RelayConnection defaults to WebSocketTransport
+
   const connection = new RelayConnection({
     relayUrl: config.relayUrl,
     adapter,
@@ -78,6 +99,7 @@ async function main(): Promise<void> {
     pairingToken: identity.pairingToken,
     hostInfo,
     log,
+    ...(createTransport ? { createTransport } : {}),
   })
   connection.start()
 

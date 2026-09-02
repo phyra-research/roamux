@@ -106,6 +106,17 @@ export class RelayConnection {
       return
     }
     const msg = parsed.value.message
+
+    // Over a relay (WS) the relay handles pairing and the host never sees
+    // client.hello. Over Ably (no relay), host + client share one channel, so a
+    // client announcing itself is our cue to (re)broadcast host state + the
+    // session snapshot — that's how a late-joining client gets caught up.
+    if (msg.kind === "client.hello") {
+      this.send({ kind: "host.state", info: this.opts.hostInfo() })
+      void this.sendSnapshot()
+      return
+    }
+
     if (msg.kind !== "command") return
 
     // Idempotency: a redelivered command (same messageId) must not run twice.
