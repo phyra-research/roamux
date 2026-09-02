@@ -42,6 +42,7 @@
       "name": "@openremote/web",
       "version": "0.0.0",
       "dependencies": {
+        "@openremote/db": "workspace:*",
         "@openremote/protocol": "workspace:*",
         "next": "^15.1.0",
         "react": "^19.0.0",
