@@ -14,12 +14,15 @@ import {
   parseWith,
   serialize,
 } from "@openremote/protocol"
+import type { RealtimeCtor } from "@openremote/protocol"
 import type { ConnectionStatus, PendingPermission, TimelineEntry } from "./types"
 
 /** How the client reaches the host: via the local relay WS, or via Ably. */
 export type ClientTransportConfig =
   | { kind: "ws"; relayUrl: string }
-  | { kind: "ably"; apiKey: string }
+  // realtimeCtor is resolved via a dynamic import in the provider so Ably's
+  // browser build only loads in an async chunk when Ably mode is actually used.
+  | { kind: "ably"; apiKey: string; realtimeCtor: RealtimeCtor }
 
 /** The full client-side view of the world, recomputed into an immutable snapshot. */
 export type RelayState = {
@@ -44,6 +47,9 @@ const EMPTY: RelayState = {
   streaming: {},
   permissions: {},
 }
+
+/** The initial (pre-connect) snapshot, exported for the provider's fallback. */
+export const INITIAL_STATE: RelayState = EMPTY
 
 const TOKEN_KEY = "openremote.token"
 const CLIENT_ID_KEY = "openremote.clientId"
@@ -95,6 +101,7 @@ export class RelayClient {
       channel: pairingChannel(token),
       apiKey: this.config.apiKey,
       clientId: `client:${this.clientId}`,
+      RealtimeImpl: this.config.realtimeCtor,
     })
   }
 

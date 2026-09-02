@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type * as Ably from "ably"
-import { AblyTransport } from "./ably-transport.js"
+import { AblyTransport, type RealtimeCtor } from "./ably-transport.js"
 import { controlChannel, sessionChannel } from "./channels.js"
 
 /**
@@ -66,7 +65,7 @@ function makeTransport(channel = "test:channel") {
     channel,
     apiKey: "fake:key",
     clientId: "host-1",
-    RealtimeImpl: FakeRealtime as unknown as typeof Ably.Realtime,
+    RealtimeImpl: FakeRealtime as unknown as RealtimeCtor,
   })
   // Reach the fake once connected.
   const realtime = () =>
@@ -76,7 +75,13 @@ function makeTransport(channel = "test:channel") {
 
 describe("AblyTransport", () => {
   test("requires some auth option", () => {
-    expect(() => new AblyTransport({ channel: "c" })).toThrow(/apiKey, authUrl, authCallback/)
+    expect(
+      () =>
+        new AblyTransport({
+          channel: "c",
+          RealtimeImpl: FakeRealtime as unknown as RealtimeCtor,
+        }),
+    ).toThrow(/apiKey, authUrl, authCallback/)
   })
 
   test("connect creates a client and isOpen tracks 'connected' state", () => {

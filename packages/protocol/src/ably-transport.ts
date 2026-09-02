@@ -1,5 +1,14 @@
-import * as Ably from "ably"
+import type * as Ably from "ably"
 import type { Transport } from "./transport.js"
+
+/**
+ * The slice of Ably's `Realtime` constructor we need. Callers inject a concrete
+ * one so this module never imports a specific Ably BUILD at runtime — the host
+ * passes Node's `ably` `Realtime`; the browser passes one composed from
+ * `ably/modular` (the bundler-friendly ESM build). This keeps Ably's UMD Node
+ * bundle out of the web build, which webpack cannot parse.
+ */
+export type RealtimeCtor = new (options: Ably.ClientOptions) => Ably.Realtime
 
 /**
  * AblyTransport — the production `Transport` (Beta). It carries the SAME opaque
@@ -29,10 +38,11 @@ export type AblyTransportOptions = {
   /** Stable id for this endpoint (host or client), used for presence/tracing. */
   clientId?: string
   /**
-   * Injectable Realtime constructor for tests (a fake Ably). Defaults to the
-   * real `Ably.Realtime`.
+   * The Ably `Realtime` constructor to use. REQUIRED — callers inject it so this
+   * module doesn't pull a specific Ably build into every bundle. Use the helpers
+   * `nodeRealtimeCtor()` (host) or `browserRealtimeCtor()` (web).
    */
-  RealtimeImpl?: typeof Ably.Realtime
+  RealtimeImpl: RealtimeCtor
 }
 
 /** The single Ably message name we publish frames under on every channel. */
@@ -45,7 +55,7 @@ export class AblyTransport implements Transport {
   private channel: Ably.RealtimeChannel | null = null
   private closed = false
   private readonly opts: AblyTransportOptions
-  private readonly RealtimeImpl: typeof Ably.Realtime
+  private readonly RealtimeImpl: RealtimeCtor
 
   private readonly messageHandlers = new Set<Handler<[string]>>()
   private readonly openHandlers = new Set<Handler<[]>>()
@@ -56,7 +66,7 @@ export class AblyTransport implements Transport {
       throw new Error("AblyTransport requires one of: apiKey, authUrl, authCallback")
     }
     this.opts = opts
-    this.RealtimeImpl = opts.RealtimeImpl ?? Ably.Realtime
+    this.RealtimeImpl = opts.RealtimeImpl
   }
 
   get isOpen(): boolean {

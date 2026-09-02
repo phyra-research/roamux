@@ -2,6 +2,7 @@
 import type { HarnessAdapter } from "@openremote/agent-adapters"
 import { MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
 import { AblyTransport, type HostInfo, pairingChannel } from "@openremote/protocol"
+import { nodeRealtimeCtor } from "@openremote/protocol/ably-node"
 import { type HostConfig, loadConfig } from "./config.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
 import { RelayConnection } from "./relay-connection.js"
@@ -86,6 +87,7 @@ async function main(): Promise<void> {
             channel: pairingChannel(identity.pairingToken),
             apiKey: config.ablyApiKey,
             clientId: `host:${identity.deviceId}`,
+            RealtimeImpl: nodeRealtimeCtor(),
           })
       : undefined // undefined → RelayConnection defaults to WebSocketTransport
 

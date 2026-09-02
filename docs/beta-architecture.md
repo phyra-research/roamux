@@ -450,6 +450,15 @@ These are the honest execution risks — mostly **not** architectural:
   in-product "host is asleep" messaging.
 - **R5 — Three overlapping recovery mechanisms** (`session.refresh`,
   `session.snapshot`, history hydration). Collapse to one clear recovery path.
+- **R6 — Ably's browser build vs Next/webpack (found in P1).** Ably's prebuilt
+  bundles use a `super(...args)` class-expression that webpack's parser rejects
+  ("super outside method"), breaking `next build`. The **transport works**
+  (host↔client proven over Ably headlessly); only bundling it into the web app
+  is blocked. **Decision:** the web app stays on the relay WebSocket for P1; we
+  wire browser-Ably in **P2** using `ably/react` + short-lived **token auth**
+  (the setup accounts need anyway), not a raw API key in the bundle. The host +
+  protocol Ably code (`AblyTransport`, `ably-node`, `ably-browser`) is done and
+  tested and ships in P1.
 
 ---
 

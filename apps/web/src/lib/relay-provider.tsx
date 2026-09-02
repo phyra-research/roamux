@@ -10,18 +10,15 @@ import {
   useMemo,
   useSyncExternalStore,
 } from "react"
-import { type ClientTransportConfig, RelayClient, type RelayState } from "./relay-client"
+import { RelayClient, type RelayState } from "./relay-client"
 
 const RELAY_URL = process.env.NEXT_PUBLIC_RELAY_URL ?? "ws://127.0.0.1:8787"
-const TRANSPORT = process.env.NEXT_PUBLIC_TRANSPORT ?? "ws"
-const ABLY_API_KEY = process.env.NEXT_PUBLIC_ABLY_API_KEY ?? ""
 
-// Choose the client transport at build/runtime. Ably needs a browser-usable key
-// (Phase 1 dev). Phase 2 swaps this for a short-lived token from the API.
-const TRANSPORT_CONFIG: ClientTransportConfig =
-  TRANSPORT === "ably"
-    ? { kind: "ably", apiKey: ABLY_API_KEY }
-    : { kind: "ws", relayUrl: RELAY_URL }
+// Phase 1 note: the web app talks to the host over the local relay WebSocket.
+// The Ably transport works end-to-end for host↔client (proven headlessly), but
+// bundling Ably's browser build into the Next production build is deferred to
+// Phase 2, where we'll use `ably/react` + short-lived token auth (the setup we
+// need for accounts anyway). See docs/beta-architecture.md.
 
 type RelayContextValue = {
   state: RelayState
@@ -34,7 +31,7 @@ const RelayContext = createContext<RelayContextValue | null>(null)
 
 export function RelayProvider({ children }: { children: ReactNode }) {
   // One client instance for the whole app lifetime.
-  const client = useMemo(() => new RelayClient(TRANSPORT_CONFIG), [])
+  const client = useMemo(() => new RelayClient({ kind: "ws", relayUrl: RELAY_URL }), [])
 
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot)
 
@@ -43,10 +40,9 @@ export function RelayProvider({ children }: { children: ReactNode }) {
     return () => client.disconnect()
   }, [client])
 
-  // STABLE callbacks — identity never changes across renders. This matters:
-  // pages call sendCommand inside effects keyed on [status, sendCommand]; if the
-  // identity churned on every state update, those effects would re-fire in an
-  // infinite loop (send → state change → new fn → send → …).
+  // STABLE callbacks — identity never changes across renders. Pages call
+  // sendCommand inside effects keyed on [status, sendCommand]; a churning
+  // identity would loop them.
   const pair = useCallback((token: string) => client.pair(token), [client])
   const unpair = useCallback(() => client.unpair(), [client])
   const sendCommand = useCallback((command: RemoteCommand) => client.sendCommand(command), [client])
