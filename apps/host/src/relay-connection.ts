@@ -10,6 +10,7 @@ import {
   serialize,
 } from "@openremote/protocol"
 import { handleCommand } from "./command-handler.js"
+import { IdempotencyCache } from "./idempotency-cache.js"
 import { RunTracker } from "./run-tracker.js"
 import type { HostStore } from "./store.js"
 
@@ -40,6 +41,7 @@ export class RelayConnection {
   private closed = false
   private eventPumpStarted = false
   private readonly runTracker = new RunTracker()
+  private readonly idempotency = new IdempotencyCache()
   private readonly log: (msg: string) => void
 
   constructor(private readonly opts: RelayConnectionOptions) {
@@ -105,6 +107,14 @@ export class RelayConnection {
     }
     const msg = parsed.value.message
     if (msg.kind !== "command") return
+
+    // Idempotency: a redelivered command (same messageId) must not run twice.
+    // Permission responses are naturally idempotent at the adapter too, but this
+    // guards every command uniformly (Beta §5.5).
+    if (!this.idempotency.markProcessed(parsed.value.messageId)) {
+      this.log(`skip duplicate command ${msg.command.type} (${parsed.value.messageId})`)
+      return
+    }
 
     try {
       const replies = await handleCommand(this.opts.adapter, msg.command)
