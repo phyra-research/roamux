@@ -199,6 +199,11 @@ export class RelayClient {
     const permissions = { ...this.state.permissions }
     const list = timelines[sessionId] ? [...timelines[sessionId]] : []
 
+    // run.* are lifecycle markers (session/run split) with no timeline line in
+    // the V0 UI. They still flush a pending stream buffer, but add no entry.
+    const isRunLifecycle =
+      event.type === "run.started" || event.type === "run.completed" || event.type === "run.failed"
+
     if (event.type === "assistant.delta") {
       // Fold deltas into a running buffer instead of one entry per token.
       streaming[sessionId] = (streaming[sessionId] ?? "") + event.text
@@ -212,12 +217,14 @@ export class RelayClient {
         })
         delete streaming[sessionId]
       }
-      list.push({
-        key: `${sessionId}:${sequence ?? list.length}:${event.type}`,
-        sequence,
-        event,
-        at: Date.now(),
-      })
+      if (!isRunLifecycle) {
+        list.push({
+          key: `${sessionId}:${sequence ?? list.length}:${event.type}`,
+          sequence,
+          event,
+          at: Date.now(),
+        })
+      }
     }
 
     if (event.type === "permission.requested") {

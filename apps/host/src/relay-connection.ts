@@ -10,6 +10,7 @@ import {
   serialize,
 } from "@openremote/protocol"
 import { handleCommand } from "./command-handler.js"
+import { RunTracker } from "./run-tracker.js"
 import type { HostStore } from "./store.js"
 
 export type RelayConnectionOptions = {
@@ -38,6 +39,7 @@ export class RelayConnection {
   private readonly transport: Transport
   private closed = false
   private eventPumpStarted = false
+  private readonly runTracker = new RunTracker()
   private readonly log: (msg: string) => void
 
   constructor(private readonly opts: RelayConnectionOptions) {
@@ -68,12 +70,16 @@ export class RelayConnection {
     this.transport.close()
   }
 
-  private send(message: HostToRelay, sessionId?: string, sequence?: number): void {
+  private send(
+    message: HostToRelay,
+    parts: { sessionId?: string; sequence?: number; runId?: string } = {},
+  ): void {
     if (!this.transport.isOpen) return
     const env = createEnvelope(message, {
       deviceId: this.opts.deviceId,
-      ...(sessionId !== undefined ? { sessionId } : {}),
-      ...(sequence !== undefined ? { sequence } : {}),
+      ...(parts.sessionId !== undefined ? { sessionId: parts.sessionId } : {}),
+      ...(parts.sequence !== undefined ? { sequence: parts.sequence } : {}),
+      ...(parts.runId !== undefined ? { runId: parts.runId } : {}),
     })
     this.transport.send(serialize(env))
   }
@@ -109,10 +115,12 @@ export class RelayConnection {
   }
 
   /**
-   * Drain the adapter's event stream forever, tagging each event with a
-   * monotonically increasing per-session sequence number and forwarding it.
-   * Started once; survives reconnects (buffered events simply flush when the
-   * socket is back up — dropped if still down, which M3 resume will fix).
+   * Drain the adapter's event stream forever. Each incoming event is run through
+   * the RunTracker (which synthesizes run.started/run.completed/run.failed around
+   * it — the session/run split, #9), then every resulting event is tagged with a
+   * monotonically increasing per-session sequence number and its runId, and
+   * forwarded. Started once; survives reconnects (events dropped while the socket
+   * is down, which M3 resume will fix).
    */
   private startEventPump(): void {
     if (this.eventPumpStarted) return
@@ -120,8 +128,10 @@ export class RelayConnection {
     void (async () => {
       for await (const { sessionId, event } of this.opts.adapter.events()) {
         if (this.closed) break
-        const sequence = this.opts.store.nextSequence(sessionId)
-        this.send({ kind: "event", event }, sessionId, sequence)
+        for (const { event: outEvent, runId } of this.runTracker.annotate(sessionId, event)) {
+          const sequence = this.opts.store.nextSequence(sessionId)
+          this.send({ kind: "event", event: outEvent }, { sessionId, sequence, runId })
+        }
       }
     })()
   }
