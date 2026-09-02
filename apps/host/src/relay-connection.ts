@@ -3,6 +3,8 @@ import {
   ClientToRelayEnvelopeSchema,
   type HostInfo,
   type HostToRelay,
+  type Transport,
+  WebSocketTransport,
   createEnvelope,
   parseWith,
   serialize,
@@ -18,75 +20,62 @@ export type RelayConnectionOptions = {
   pairingToken: string
   hostInfo: () => HostInfo
   log?: (msg: string) => void
+  /**
+   * Transport factory. Defaults to a WebSocketTransport dialing the relay's
+   * `/host` endpoint. Injectable so tests can drive a fake transport, and so a
+   * future AblyTransport slots in without touching this class.
+   */
+  createTransport?: (url: string) => Transport
 }
 
 /**
- * Owns the outbound WebSocket to the relay, the reconnect loop, and the two
- * pumps: adapter events → relay (with sequence numbers) and relay commands →
- * adapter. The host ALWAYS dials out; the relay never dials the host.
+ * Owns the outbound connection to the relay (via a Transport), the reconnect
+ * loop, and the two pumps: adapter events → relay (with sequence numbers) and
+ * relay commands → adapter. The host ALWAYS dials out; the relay never dials
+ * the host.
  */
 export class RelayConnection {
-  private ws: WebSocket | null = null
+  private readonly transport: Transport
   private closed = false
-  private backoffMs = 500
   private eventPumpStarted = false
   private readonly log: (msg: string) => void
 
   constructor(private readonly opts: RelayConnectionOptions) {
     this.log = opts.log ?? (() => {})
+    const url = `${this.opts.relayUrl.replace(/\/$/, "")}/host`
+    this.transport = (opts.createTransport ?? ((u) => new WebSocketTransport({ url: u })))(url)
+
+    this.transport.onOpen(() => {
+      this.log("connected to relay")
+      this.sendHello()
+      void this.sendSnapshot()
+    })
+    this.transport.onMessage((raw) => void this.onCommandFrame(raw))
+    this.transport.onClose(() => {
+      if (this.closed) return
+      this.log("relay connection closed; reconnecting")
+    })
   }
 
   start(): void {
-    this.connect()
+    this.log("connecting to relay …")
+    this.transport.connect()
     this.startEventPump()
   }
 
   stop(): void {
     this.closed = true
-    this.ws?.close()
-  }
-
-  private connect(): void {
-    if (this.closed) return
-    const url = `${this.opts.relayUrl.replace(/\/$/, "")}/host`
-    this.log(`connecting to ${url} …`)
-
-    const ws = new WebSocket(url)
-    this.ws = ws
-
-    ws.addEventListener("open", () => {
-      this.backoffMs = 500
-      this.log("connected to relay")
-      this.sendHello()
-      void this.sendSnapshot()
-    })
-
-    ws.addEventListener("message", (ev) => {
-      const raw = typeof ev.data === "string" ? ev.data : String(ev.data)
-      void this.onCommandFrame(raw)
-    })
-
-    ws.addEventListener("close", () => {
-      if (this.closed) return
-      this.log(`relay connection closed; reconnecting in ${this.backoffMs}ms`)
-      this.ws = null
-      setTimeout(() => this.connect(), this.backoffMs)
-      this.backoffMs = Math.min(this.backoffMs * 2, 10_000)
-    })
-
-    ws.addEventListener("error", () => {
-      // 'close' handles reconnect; keep this quiet to avoid double logging.
-    })
+    this.transport.close()
   }
 
   private send(message: HostToRelay, sessionId?: string, sequence?: number): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
+    if (!this.transport.isOpen) return
     const env = createEnvelope(message, {
       deviceId: this.opts.deviceId,
       ...(sessionId !== undefined ? { sessionId } : {}),
       ...(sequence !== undefined ? { sequence } : {}),
     })
-    this.ws.send(serialize(env))
+    this.transport.send(serialize(env))
   }
 
   private sendHello(): void {
