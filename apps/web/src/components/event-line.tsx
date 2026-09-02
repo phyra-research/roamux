@@ -50,6 +50,11 @@ export function EventLine({ event }: { event: AgentEvent }) {
     // permission.requested is rendered as an interactive card elsewhere.
     case "permission.requested":
     case "assistant.delta":
+    // run.* are lifecycle markers (session/run split); not shown as timeline
+    // lines in the V0 UI. A future run-grouped view will use them.
+    case "run.started":
+    case "run.completed":
+    case "run.failed":
       return null
   }
 }

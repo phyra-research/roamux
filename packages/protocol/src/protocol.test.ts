@@ -4,6 +4,7 @@ import {
   ClientToRelayEnvelopeSchema,
   HostToRelayEnvelopeSchema,
   PROTOCOL_VERSION,
+  RelayToClientEnvelopeSchema,
   RemoteCommandSchema,
   createEnvelope,
   newId,
@@ -68,6 +69,29 @@ describe("envelope round-trip", () => {
     const parsed = parseWith(HostToRelayEnvelopeSchema, serialize(env))
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(parsed.value.sequence).toBe(42)
+  })
+
+  test("envelope carries beta routing fields hostId + runId", () => {
+    const env = createEnvelope(
+      { kind: "event" as const, event: { type: "assistant.delta" as const, text: "chunk" } },
+      { deviceId: "dev-1", hostId: "host-abc", sessionId: "s1", runId: "run-9", sequence: 7 },
+    )
+    expect(env.hostId).toBe("host-abc")
+    expect(env.runId).toBe("run-9")
+    const parsed = parseWith(HostToRelayEnvelopeSchema, serialize(env))
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) {
+      expect(parsed.value.hostId).toBe("host-abc")
+      expect(parsed.value.runId).toBe("run-9")
+    }
+  })
+
+  test("hostId + runId are optional — V0 envelopes still validate", () => {
+    const env = createEnvelope({ kind: "ack" as const, ok: true }, { deviceId: "d" })
+    expect(env.hostId).toBeUndefined()
+    expect(env.runId).toBeUndefined()
+    const parsed = parseWith(RelayToClientEnvelopeSchema, serialize(env))
+    expect(parsed.ok).toBe(true)
   })
 })
 

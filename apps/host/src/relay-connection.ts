@@ -1,92 +1,89 @@
-import type { AgentAdapter } from "@openremote/agent-adapters"
+import type { HarnessAdapter } from "@openremote/agent-adapters"
 import {
   ClientToRelayEnvelopeSchema,
   type HostInfo,
   type HostToRelay,
+  type Transport,
+  WebSocketTransport,
   createEnvelope,
   parseWith,
   serialize,
 } from "@openremote/protocol"
 import { handleCommand } from "./command-handler.js"
+import { IdempotencyCache } from "./idempotency-cache.js"
+import { RunTracker } from "./run-tracker.js"
 import type { HostStore } from "./store.js"
 
 export type RelayConnectionOptions = {
   relayUrl: string
-  adapter: AgentAdapter
+  adapter: HarnessAdapter
   store: HostStore
   deviceId: string
   pairingToken: string
   hostInfo: () => HostInfo
   log?: (msg: string) => void
+  /**
+   * Transport factory. Defaults to a WebSocketTransport dialing the relay's
+   * `/host` endpoint. Injectable so tests can drive a fake transport, and so a
+   * future AblyTransport slots in without touching this class.
+   */
+  createTransport?: (url: string) => Transport
 }
 
 /**
- * Owns the outbound WebSocket to the relay, the reconnect loop, and the two
- * pumps: adapter events → relay (with sequence numbers) and relay commands →
- * adapter. The host ALWAYS dials out; the relay never dials the host.
+ * Owns the outbound connection to the relay (via a Transport), the reconnect
+ * loop, and the two pumps: adapter events → relay (with sequence numbers) and
+ * relay commands → adapter. The host ALWAYS dials out; the relay never dials
+ * the host.
  */
 export class RelayConnection {
-  private ws: WebSocket | null = null
+  private readonly transport: Transport
   private closed = false
-  private backoffMs = 500
   private eventPumpStarted = false
+  private readonly runTracker = new RunTracker()
+  private readonly idempotency = new IdempotencyCache()
   private readonly log: (msg: string) => void
 
   constructor(private readonly opts: RelayConnectionOptions) {
     this.log = opts.log ?? (() => {})
+    const url = `${this.opts.relayUrl.replace(/\/$/, "")}/host`
+    this.transport = (opts.createTransport ?? ((u) => new WebSocketTransport({ url: u })))(url)
+
+    this.transport.onOpen(() => {
+      this.log("connected to relay")
+      this.sendHello()
+      void this.sendSnapshot()
+    })
+    this.transport.onMessage((raw) => void this.onCommandFrame(raw))
+    this.transport.onClose(() => {
+      if (this.closed) return
+      this.log("relay connection closed; reconnecting")
+    })
   }
 
   start(): void {
-    this.connect()
+    this.log("connecting to relay …")
+    this.transport.connect()
     this.startEventPump()
   }
 
   stop(): void {
     this.closed = true
-    this.ws?.close()
+    this.transport.close()
   }
 
-  private connect(): void {
-    if (this.closed) return
-    const url = `${this.opts.relayUrl.replace(/\/$/, "")}/host`
-    this.log(`connecting to ${url} …`)
-
-    const ws = new WebSocket(url)
-    this.ws = ws
-
-    ws.addEventListener("open", () => {
-      this.backoffMs = 500
-      this.log("connected to relay")
-      this.sendHello()
-      void this.sendSnapshot()
-    })
-
-    ws.addEventListener("message", (ev) => {
-      const raw = typeof ev.data === "string" ? ev.data : String(ev.data)
-      void this.onCommandFrame(raw)
-    })
-
-    ws.addEventListener("close", () => {
-      if (this.closed) return
-      this.log(`relay connection closed; reconnecting in ${this.backoffMs}ms`)
-      this.ws = null
-      setTimeout(() => this.connect(), this.backoffMs)
-      this.backoffMs = Math.min(this.backoffMs * 2, 10_000)
-    })
-
-    ws.addEventListener("error", () => {
-      // 'close' handles reconnect; keep this quiet to avoid double logging.
-    })
-  }
-
-  private send(message: HostToRelay, sessionId?: string, sequence?: number): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
+  private send(
+    message: HostToRelay,
+    parts: { sessionId?: string; sequence?: number; runId?: string } = {},
+  ): void {
+    if (!this.transport.isOpen) return
     const env = createEnvelope(message, {
       deviceId: this.opts.deviceId,
-      ...(sessionId !== undefined ? { sessionId } : {}),
-      ...(sequence !== undefined ? { sequence } : {}),
+      ...(parts.sessionId !== undefined ? { sessionId: parts.sessionId } : {}),
+      ...(parts.sequence !== undefined ? { sequence: parts.sequence } : {}),
+      ...(parts.runId !== undefined ? { runId: parts.runId } : {}),
     })
-    this.ws.send(serialize(env))
+    this.transport.send(serialize(env))
   }
 
   private sendHello(): void {
@@ -111,6 +108,14 @@ export class RelayConnection {
     const msg = parsed.value.message
     if (msg.kind !== "command") return
 
+    // Idempotency: a redelivered command (same messageId) must not run twice.
+    // Permission responses are naturally idempotent at the adapter too, but this
+    // guards every command uniformly (Beta §5.5).
+    if (!this.idempotency.markProcessed(parsed.value.messageId)) {
+      this.log(`skip duplicate command ${msg.command.type} (${parsed.value.messageId})`)
+      return
+    }
+
     try {
       const replies = await handleCommand(this.opts.adapter, msg.command)
       for (const reply of replies) this.send(reply)
@@ -120,10 +125,12 @@ export class RelayConnection {
   }
 
   /**
-   * Drain the adapter's event stream forever, tagging each event with a
-   * monotonically increasing per-session sequence number and forwarding it.
-   * Started once; survives reconnects (buffered events simply flush when the
-   * socket is back up — dropped if still down, which M3 resume will fix).
+   * Drain the adapter's event stream forever. Each incoming event is run through
+   * the RunTracker (which synthesizes run.started/run.completed/run.failed around
+   * it — the session/run split, #9), then every resulting event is tagged with a
+   * monotonically increasing per-session sequence number and its runId, and
+   * forwarded. Started once; survives reconnects (events dropped while the socket
+   * is down, which M3 resume will fix).
    */
   private startEventPump(): void {
     if (this.eventPumpStarted) return
@@ -131,8 +138,10 @@ export class RelayConnection {
     void (async () => {
       for await (const { sessionId, event } of this.opts.adapter.events()) {
         if (this.closed) break
-        const sequence = this.opts.store.nextSequence(sessionId)
-        this.send({ kind: "event", event }, sessionId, sequence)
+        for (const { event: outEvent, runId } of this.runTracker.annotate(sessionId, event)) {
+          const sequence = this.opts.store.nextSequence(sessionId)
+          this.send({ kind: "event", event: outEvent }, { sessionId, sequence, runId })
+        }
       }
     })()
   }

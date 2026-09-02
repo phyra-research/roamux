@@ -62,6 +62,24 @@ export const AgentEventSchema = z.discriminatedUnion("type", [
     type: z.literal("agent.failed"),
     error: z.string(),
   }),
+  // ── Run lifecycle (session vs run split, #9) ────────────────────────────────
+  // A session is long-lived (host+project+harness); a run is one unit of work
+  // inside it (usually one instruction). Run events carry the runId so a client
+  // can group activity by run. These are ADDITIVE to the agent.* events above,
+  // which the V0 UI still uses for session status.
+  z.object({
+    type: z.literal("run.started"),
+    runId: z.string(),
+  }),
+  z.object({
+    type: z.literal("run.completed"),
+    runId: z.string(),
+  }),
+  z.object({
+    type: z.literal("run.failed"),
+    runId: z.string(),
+    error: z.string(),
+  }),
 ])
 
 export type AgentEvent = z.infer<typeof AgentEventSchema>

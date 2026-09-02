@@ -1,7 +1,7 @@
 import { type OpencodeClient, createOpencodeClient } from "@opencode-ai/sdk"
 import type { AgentSession } from "@openremote/protocol"
 import { EventQueue } from "./event-queue.js"
-import type { AgentAdapter, SessionEvent } from "./types.js"
+import type { HarnessAdapter, SessionEvent } from "./types.js"
 
 /**
  * OpenCodeAdapter — the ONLY place `@opencode-ai/sdk` may be imported
@@ -18,7 +18,10 @@ export type OpenCodeAdapterOptions = {
   directory?: string
 }
 
-export class OpenCodeAdapter implements AgentAdapter {
+export class OpenCodeAdapter implements HarnessAdapter {
+  readonly id = "opencode"
+  readonly displayName = "OpenCode"
+  /** @deprecated use `id` */
   readonly name = "opencode"
 
   private readonly client: OpencodeClient
@@ -56,6 +59,20 @@ export class OpenCodeAdapter implements AgentAdapter {
   constructor(opts: OpenCodeAdapterOptions) {
     this.directory = opts.directory ?? process.cwd()
     this.client = createOpencodeClient({ baseUrl: opts.baseUrl })
+  }
+
+  /**
+   * OpenCode is "installed" for this adapter's purposes if its server responds.
+   * The daemon points us at a URL it controls (a spawned `opencode serve`), so a
+   * successful session.list is a good liveness/availability probe.
+   */
+  async isInstalled(): Promise<boolean> {
+    try {
+      await this.client.session.list({ query: { directory: this.directory } })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async start(): Promise<void> {

@@ -9,16 +9,26 @@ export const PROTOCOL_VERSION = 1 as const
  * Every payload on the wire is wrapped in an Envelope. The `message` field is
  * where the variety lives; everything else is routing/observability metadata.
  *
- * `sequence` is per-session and monotonically increasing for event messages.
- * It is present from day one so reconnection/resume (M3) is a routing change,
- * not a protocol change.
+ * Routing fields (`hostId`, `sessionId`, `messageId`) are deliberately the
+ * "visible header": they stay in the clear so any transport can route on them,
+ * while the `message` body can later become an encrypted payload without
+ * changing routing (Beta §13.3).
+ *
+ * - `hostId`  — which host the message concerns. Optional in V0 (single implicit
+ *   host); becomes the multi-host routing key in Beta.
+ * - `runId`   — which run inside a session (a session is long-lived; runs come
+ *   and go). Optional; threaded once the session/run split lands (#9).
+ * - `sequence`— per-session, monotonically increasing for event messages, so
+ *   reconnection/resume is a routing change, not a protocol change.
  */
 function envelope<T extends z.ZodTypeAny>(message: T) {
   return z.object({
     protocolVersion: z.literal(PROTOCOL_VERSION),
     messageId: z.string(),
     deviceId: z.string(),
+    hostId: z.string().optional(),
     sessionId: z.string().optional(),
+    runId: z.string().optional(),
     sequence: z.number().int().nonnegative().optional(),
     timestamp: z.number(),
     message,
@@ -119,7 +129,9 @@ export type Envelope<T> = {
   protocolVersion: typeof PROTOCOL_VERSION
   messageId: string
   deviceId: string
+  hostId?: string
   sessionId?: string
+  runId?: string
   sequence?: number
   timestamp: number
   message: T

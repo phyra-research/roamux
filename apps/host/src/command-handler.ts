@@ -1,8 +1,8 @@
-import type { AgentAdapter } from "@openremote/agent-adapters"
+import type { HarnessAdapter } from "@openremote/agent-adapters"
 import type { HostToRelay, RemoteCommand } from "@openremote/protocol"
 
 /**
- * Translate a validated RemoteCommand into AgentAdapter calls. Pure with
+ * Translate a validated RemoteCommand into HarnessAdapter calls. Pure with
  * respect to transport: it takes an adapter and returns any host→relay messages
  * that should be sent back immediately (e.g. a fresh sessions snapshot). Live
  * agent output arrives asynchronously via adapter.events(), not from here.
@@ -12,7 +12,7 @@ import type { HostToRelay, RemoteCommand } from "@openremote/protocol"
  * relay's Zod validation).
  */
 export async function handleCommand(
-  adapter: AgentAdapter,
+  adapter: HarnessAdapter,
   command: RemoteCommand,
 ): Promise<HostToRelay[]> {
   switch (command.type) {

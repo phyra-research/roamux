@@ -71,6 +71,13 @@ class TestClient {
     this.ws.send(serialize(createEnvelope({ kind: "command", command }, { deviceId: "browser" })))
   }
 
+  /** Send a command with a FIXED messageId, to simulate transport redelivery. */
+  commandWithId(command: RemoteCommand, messageId: string): void {
+    this.ws.send(
+      serialize(createEnvelope({ kind: "command", command }, { deviceId: "browser", messageId })),
+    )
+  }
+
   /** Resolve once `predicate` over collected event types is satisfied. */
   waitForEvent(
     predicate: (types: AgentEvent["type"][]) => boolean,
@@ -277,5 +284,54 @@ describe("vertical slice (milestone 1)", () => {
     client.close()
     conn.stop()
     await permAdapter.stop()
+  })
+
+  test("duplicate command delivery is a no-op (idempotency)", async () => {
+    const dupAdapter = new MockAgentAdapter({ seedSession: true, stepMs: 10 })
+    await dupAdapter.start()
+    const conn = new RelayConnection({
+      relayUrl: `ws://127.0.0.1:${port}`,
+      adapter: dupAdapter,
+      store: new HostStore(":memory:"),
+      deviceId: "host-dup",
+      pairingToken: "dup-token",
+      hostInfo: () => ({
+        deviceId: "host-dup",
+        name: "dup-mac",
+        online: true,
+        adapter: "mock",
+        activeSessions: 1,
+      }),
+    })
+    conn.start()
+    await new Promise((r) => setTimeout(r, 150))
+
+    const client = new TestClient(`ws://127.0.0.1:${port}/client`)
+    await client.open()
+    client.pair("dup-token")
+    await new Promise((r) => setTimeout(r, 80))
+
+    // Send the SAME command (same messageId) twice — a redelivery.
+    const messageId = "dup-msg-1"
+    const cmd: RemoteCommand = {
+      type: "prompt.send",
+      sessionId: "mock-session-1",
+      text: "do the thing",
+    }
+    client.commandWithId(cmd, messageId)
+    client.commandWithId(cmd, messageId)
+
+    await client.waitForEvent((types) => types.includes("agent.completed"))
+    await new Promise((r) => setTimeout(r, 60))
+
+    // Exactly one run should have executed despite the duplicate delivery.
+    const runStarts = client.events.filter((e) => e.event.type === "run.started").length
+    const completes = client.events.filter((e) => e.event.type === "agent.completed").length
+    expect(runStarts).toBe(1)
+    expect(completes).toBe(1)
+
+    client.close()
+    conn.stop()
+    await dupAdapter.stop()
   })
 })

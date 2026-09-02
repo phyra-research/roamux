@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import type { AgentAdapter } from "@openremote/agent-adapters"
+import type { HarnessAdapter } from "@openremote/agent-adapters"
 import { MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
 import type { HostInfo } from "@openremote/protocol"
 import { type HostConfig, loadConfig } from "./config.js"
@@ -11,7 +11,7 @@ const log = (msg: string) => console.log(`[host] ${msg}`)
 
 async function buildAdapter(
   config: HostConfig,
-): Promise<{ adapter: AgentAdapter; opencode?: SpawnedOpenCode }> {
+): Promise<{ adapter: HarnessAdapter; opencode?: SpawnedOpenCode }> {
   if (config.adapter === "mock") {
     return { adapter: new MockAgentAdapter() }
   }

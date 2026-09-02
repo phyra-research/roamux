@@ -42,7 +42,9 @@ export function newPairingToken(): string {
 
 export type EnvelopeParts = {
   deviceId: string
+  hostId?: string
   sessionId?: string
+  runId?: string
   sequence?: number
   timestamp?: number
   messageId?: string
@@ -57,7 +59,9 @@ export function createEnvelope<T>(message: T, parts: EnvelopeParts): Envelope<T>
     timestamp: parts.timestamp ?? Date.now(),
     message,
   }
+  if (parts.hostId !== undefined) env.hostId = parts.hostId
   if (parts.sessionId !== undefined) env.sessionId = parts.sessionId
+  if (parts.runId !== undefined) env.runId = parts.runId
   if (parts.sequence !== undefined) env.sequence = parts.sequence
   return env
 }
