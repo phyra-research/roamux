@@ -10,9 +10,18 @@ import {
   useMemo,
   useSyncExternalStore,
 } from "react"
-import { RelayClient, type RelayState } from "./relay-client"
+import { type ClientTransportConfig, RelayClient, type RelayState } from "./relay-client"
 
 const RELAY_URL = process.env.NEXT_PUBLIC_RELAY_URL ?? "ws://127.0.0.1:8787"
+const TRANSPORT = process.env.NEXT_PUBLIC_TRANSPORT ?? "ws"
+const ABLY_API_KEY = process.env.NEXT_PUBLIC_ABLY_API_KEY ?? ""
+
+// Choose the client transport at build/runtime. Ably needs a browser-usable key
+// (Phase 1 dev). Phase 2 swaps this for a short-lived token from the API.
+const TRANSPORT_CONFIG: ClientTransportConfig =
+  TRANSPORT === "ably"
+    ? { kind: "ably", apiKey: ABLY_API_KEY }
+    : { kind: "ws", relayUrl: RELAY_URL }
 
 type RelayContextValue = {
   state: RelayState
@@ -25,7 +34,7 @@ const RelayContext = createContext<RelayContextValue | null>(null)
 
 export function RelayProvider({ children }: { children: ReactNode }) {
   // One client instance for the whole app lifetime.
-  const client = useMemo(() => new RelayClient(RELAY_URL), [])
+  const client = useMemo(() => new RelayClient(TRANSPORT_CONFIG), [])
 
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot)
 

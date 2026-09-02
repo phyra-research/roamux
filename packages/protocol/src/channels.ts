@@ -26,3 +26,13 @@ export function sessionChannel(
 ): string {
   return `${NS}:user:${userId}:host:${hostId}:session:${sessionId}`
 }
+
+/**
+ * V0/Phase-1 rendezvous channel derived from the pairing token. Before accounts
+ * exist (Phase 2), the host and a paired client share this one channel as the
+ * meeting point — both sides know the token, so neither needs a hostId up front.
+ * Superseded by the user/host-scoped channels above once auth lands.
+ */
+export function pairingChannel(token: string): string {
+  return `${NS}:pair:${token}`
+}

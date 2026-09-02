@@ -1,16 +1,25 @@
 import {
+  AblyTransport,
   type AgentEvent,
   type AgentSession,
   type HostInfo,
   type RelayToClientEnvelope,
   RelayToClientEnvelopeSchema,
   type RemoteCommand,
+  type Transport,
+  WebSocketTransport,
   createEnvelope,
   newId,
+  pairingChannel,
   parseWith,
   serialize,
 } from "@openremote/protocol"
 import type { ConnectionStatus, PendingPermission, TimelineEntry } from "./types"
+
+/** How the client reaches the host: via the local relay WS, or via Ably. */
+export type ClientTransportConfig =
+  | { kind: "ws"; relayUrl: string }
+  | { kind: "ably"; apiKey: string }
 
 /** The full client-side view of the world, recomputed into an immutable snapshot. */
 export type RelayState = {
@@ -45,15 +54,13 @@ const CLIENT_ID_KEY = "openremote.clientId"
  * subscribers. React binds to it via useSyncExternalStore.
  */
 export class RelayClient {
-  private ws: WebSocket | null = null
+  private transport: Transport | null = null
   private state: RelayState = EMPTY
   private listeners = new Set<() => void>()
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  private backoffMs = 500
   private clientId: string
   private wantConnected = false
 
-  constructor(private readonly relayUrl: string) {
+  constructor(private readonly config: ClientTransportConfig) {
     this.clientId = readClientId()
     const token = readToken()
     this.state = { ...EMPTY, token }
@@ -71,48 +78,56 @@ export class RelayClient {
     for (const l of this.listeners) l()
   }
 
+  /**
+   * Build the transport for the current mode. Over WS it dials the relay's
+   * /client endpoint. Over Ably it joins the pairing-token channel — so it can
+   * only be built once we have a token (returns null otherwise). Both transports
+   * own their own reconnect loop.
+   */
+  private buildTransport(): Transport | null {
+    if (this.config.kind === "ws") {
+      const url = `${this.config.relayUrl.replace(/\/$/, "")}/client`
+      return new WebSocketTransport({ url })
+    }
+    const token = this.state.token
+    if (!token) return null
+    return new AblyTransport({
+      channel: pairingChannel(token),
+      apiKey: this.config.apiKey,
+      clientId: `client:${this.clientId}`,
+    })
+  }
+
   // ── lifecycle ──────────────────────────────────────────────────────────────
   connect(): void {
     this.wantConnected = true
-    if (this.ws && this.ws.readyState <= WebSocket.OPEN) return
+    if (this.transport) return
+    const transport = this.buildTransport()
+    if (!transport) {
+      // Ably with no token yet: nothing to connect to until pairing supplies one.
+      this.set({ status: "unpaired" })
+      return
+    }
+    this.transport = transport
     this.set({ status: "connecting" })
-    const url = `${this.relayUrl.replace(/\/$/, "")}/client`
-    const ws = new WebSocket(url)
-    this.ws = ws
 
-    ws.onopen = () => {
-      this.backoffMs = 500
+    transport.onOpen(() => {
       const token = this.state.token
-      if (token) {
-        this.sendHello(token)
-      } else {
-        this.set({ status: "unpaired" })
-      }
-    }
-    ws.onmessage = (ev) => this.onMessage(typeof ev.data === "string" ? ev.data : "")
-    ws.onclose = () => {
-      this.ws = null
-      if (!this.wantConnected) return
-      this.set({ status: "connecting" })
-      this.scheduleReconnect()
-    }
-    ws.onerror = () => {
-      // close handles reconnect
-    }
+      if (token) this.sendHello(token)
+      else this.set({ status: "unpaired" })
+    })
+    transport.onMessage((raw) => this.onMessage(raw))
+    transport.onClose(() => {
+      if (this.wantConnected) this.set({ status: "connecting" })
+    })
+    transport.connect()
   }
 
   disconnect(): void {
     this.wantConnected = false
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
-    this.ws?.close()
-    this.ws = null
+    this.transport?.close()
+    this.transport = null
     this.set({ status: "disconnected" })
-  }
-
-  private scheduleReconnect(): void {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
-    this.reconnectTimer = setTimeout(() => this.connect(), this.backoffMs)
-    this.backoffMs = Math.min(this.backoffMs * 2, 8000)
   }
 
   // ── pairing ────────────────────────────────────────────────────────────────
@@ -120,13 +135,27 @@ export class RelayClient {
     const clean = token.trim()
     writeToken(clean)
     this.set({ token: clean })
-    if (this.ws?.readyState === WebSocket.OPEN) this.sendHello(clean)
-    else this.connect()
+    // Over Ably the channel is derived from the token, so a new token means a
+    // fresh transport. Over WS we can reuse an open socket and just re-hello.
+    if (this.config.kind === "ably") {
+      this.transport?.close()
+      this.transport = null
+      this.connect()
+    } else if (this.transport?.isOpen) {
+      this.sendHello(clean)
+    } else {
+      this.connect()
+    }
   }
 
   unpair(): void {
     writeToken(null)
-    this.set({ ...EMPTY, token: null, status: this.ws ? "unpaired" : "disconnected" })
+    const wasConnected = this.transport?.isOpen ?? false
+    if (this.config.kind === "ably") {
+      this.transport?.close()
+      this.transport = null
+    }
+    this.set({ ...EMPTY, token: null, status: wasConnected ? "unpaired" : "disconnected" })
   }
 
   private sendHello(token: string): void {
@@ -141,9 +170,9 @@ export class RelayClient {
   private send(
     message: { kind: "client.hello"; token: string } | { kind: "command"; command: RemoteCommand },
   ): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) return
+    if (!this.transport?.isOpen) return
     const env = createEnvelope(message, { deviceId: this.clientId })
-    this.ws.send(serialize(env))
+    this.transport.send(serialize(env))
   }
 
   // ── inbound handling ─────────────────────────────────────────────────────────
