@@ -203,9 +203,14 @@ See [`.env.example`](.env.example). The important ones:
 
 ## Architecture notes
 
-> 📐 Full write-up with diagrams: **[docs/architecture.md](docs/architecture.md)**
-> — components, trust boundaries, the protocol, and sequence diagrams for
+> 📐 **V0 (as-built):** [docs/architecture.md](docs/architecture.md) —
+> components, trust boundaries, the protocol, and sequence diagrams for
 > pairing, prompting, streaming, stop, and permissions.
+>
+> 🚀 **Beta / V1 (design of record):**
+> [docs/beta-architecture.md](docs/beta-architecture.md) — where we're taking it:
+> multi-host, Ably transport, accounts, daemon-owned sessions, multiple agent
+> harnesses, and the phased plan.
 
 - **Protocol** (`packages/protocol`): `Envelope<T>` wraps every message with
   `protocolVersion`, `messageId`, `deviceId`, optional `sessionId` + `sequence`,

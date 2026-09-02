@@ -1,8 +1,13 @@
-# OpenRemote — Architecture
+# OpenRemote — Architecture (V0, as-built)
 
-This document explains how OpenRemote is put together: the components, the trust
-boundaries, the message protocol, and the data flows for the core actions
-(pairing, prompting, streaming events, stopping, and permissions).
+This document explains how OpenRemote is put together **today**: the components,
+the trust boundaries, the message protocol, and the data flows for the core
+actions (pairing, prompting, streaming events, stopping, and permissions).
+
+> Looking for where the product is headed — multi-host, Ably transport,
+> accounts, daemon-owned sessions, multiple agent harnesses? That is the
+> **design of record** in [`beta-architecture.md`](beta-architecture.md). This
+> file stays the faithful record of the **V0 code that actually runs**.
 
 If you only read one thing, read **§2 Trust boundaries** — the whole design
 exists to keep those lines intact.
@@ -104,6 +109,10 @@ OpenRemote protocol   ⇕   AgentAdapter   ⇕   OpenCode
 - Everything OpenCode-specific lives **only** inside `OpenCodeAdapter`.
   `@opencode-ai/sdk` is imported in that one file and nowhere else.
 - Swapping in `OpenHandsAdapter` or `AiderAdapter` later touches nothing else.
+
+> This single V0 seam becomes **three** in Beta (`Transport` ⇔ protocol ⇔
+> `HarnessAdapter`, with `HostSessionManager` owning lifecycle). See
+> [`beta-architecture.md`](beta-architecture.md) §3.
 
 ```mermaid
 classDiagram

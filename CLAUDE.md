@@ -94,7 +94,9 @@ scripts/   dev orchestration
 docs/      architecture.md — components, boundaries, protocol, flow diagrams
 ```
 
-Full architecture with diagrams: [`docs/architecture.md`](docs/architecture.md).
+Full architecture with diagrams: [`docs/architecture.md`](docs/architecture.md)
+(V0 as-built) and [`docs/beta-architecture.md`](docs/beta-architecture.md)
+(Beta/V1 design of record — the target we're building toward).
 
 ## 7. House style
 
