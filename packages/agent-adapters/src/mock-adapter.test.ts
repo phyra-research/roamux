@@ -25,6 +25,15 @@ async function collectUntil(
 }
 
 describe("MockAgentAdapter", () => {
+  test("exposes HarnessAdapter identity (id/displayName/name) and isInstalled", async () => {
+    const a = new MockAgentAdapter({ seedSession: false })
+    expect(a.id).toBe("mock")
+    expect(a.displayName).toBe("Mock")
+    expect(a.name).toBe("mock") // deprecated alias still present
+    expect(await a.isInstalled()).toBe(true)
+    await a.stop()
+  })
+
   test("seeds a session and lists it", async () => {
     const a = new MockAgentAdapter({ seedSession: true })
     const sessions = await a.listSessions()

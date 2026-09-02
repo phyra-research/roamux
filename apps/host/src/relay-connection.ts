@@ -1,4 +1,4 @@
-import type { AgentAdapter } from "@openremote/agent-adapters"
+import type { HarnessAdapter } from "@openremote/agent-adapters"
 import {
   ClientToRelayEnvelopeSchema,
   type HostInfo,
@@ -14,7 +14,7 @@ import type { HostStore } from "./store.js"
 
 export type RelayConnectionOptions = {
   relayUrl: string
-  adapter: AgentAdapter
+  adapter: HarnessAdapter
   store: HostStore
   deviceId: string
   pairingToken: string

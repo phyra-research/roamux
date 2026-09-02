@@ -1,10 +1,10 @@
 import type { AgentSession } from "@openremote/protocol"
 import { newId } from "@openremote/protocol"
 import { EventQueue } from "./event-queue.js"
-import type { AgentAdapter, SessionEvent } from "./types.js"
+import type { HarnessAdapter, SessionEvent } from "./types.js"
 
 /**
- * A deterministic, model-free AgentAdapter used to build and test the whole
+ * A deterministic, model-free HarnessAdapter used to build and test the whole
  * vertical slice without OpenCode. It scripts a believable agent run:
  *   prompt → deltas → tool.start/complete → (optional permission) → message → done
  *
@@ -14,8 +14,16 @@ import type { AgentAdapter, SessionEvent } from "./types.js"
  *   - contains "fail"       → emits agent.failed
  * Everything is timed with small delays so the UI shows a live stream.
  */
-export class MockAgentAdapter implements AgentAdapter {
+export class MockAgentAdapter implements HarnessAdapter {
+  readonly id = "mock"
+  readonly displayName = "Mock"
+  /** @deprecated use `id` */
   readonly name = "mock"
+
+  /** The mock harness is always "installed". */
+  isInstalled(): Promise<boolean> {
+    return Promise.resolve(true)
+  }
 
   private readonly queue = new EventQueue<SessionEvent>()
   private readonly sessions = new Map<string, AgentSession>()
