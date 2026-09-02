@@ -1,0 +1,23 @@
+{
+  "name": "@openremote/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "migrate": "bun run src/migrate.ts",
+    "build": "echo 'no build step (consumed as TS source in the workspace)'"
+  },
+  "dependencies": {
+    "@openremote/protocol": "workspace:*",
+    "postgres": "^3.4.5",
+    "zod": "^3.24.1"
+  }
+}
