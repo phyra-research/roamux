@@ -19,6 +19,7 @@ export function db(): Sql {
     max: 5,
     prepare: false, // why: Supabase transaction pooler rejects prepared statements
     idle_timeout: 20,
+    onnotice: () => {}, // why: silence Postgres NOTICE chatter in logs
   })
   return sql
 }
