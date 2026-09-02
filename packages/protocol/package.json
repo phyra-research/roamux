@@ -15,6 +15,7 @@
     "build": "echo 'no build step (consumed as TS source in the workspace)'"
   },
   "dependencies": {
+    "ably": "^2.28.0",
     "zod": "^3.24.1"
   }
 }
