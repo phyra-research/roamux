@@ -25,7 +25,10 @@ export const POST = withUser(async (_req, user) => {
 
   const capability: AblyCapability = {
     // The user's own control + session channels (all their hosts/sessions).
-    [`openremote:user:${user.id}:**`]: ["subscribe", "publish", "presence"],
+    // NOTE: Ably's `*` is greedy across ':' separators, so `user:{id}:*` covers
+    // every nested channel under the user. `**` does NOT work here (verified
+    // against Ably) — it matches nothing.
+    [`openremote:user:${user.id}:*`]: ["subscribe", "publish", "presence"],
     // Transitional: the pre-accounts pairing rendezvous namespace.
     "openremote:pair:*": ["subscribe", "publish", "presence"],
   }
