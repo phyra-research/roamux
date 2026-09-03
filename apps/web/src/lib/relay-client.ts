@@ -131,8 +131,12 @@ export class RelayClient {
    */
   connectToHost(channel: string): void {
     if (this.config.kind !== "ably") return
+    // Idempotent: if we're already on this channel, do nothing. Otherwise a
+    // re-render that re-fires the auto-connect effect would tear down the live
+    // connection and rebuild it — dropping in-flight requests (e.g. the
+    // projects.list behind "Loading projects…").
+    if (this.accountChannel === channel && this.transport) return
     this.accountChannel = channel
-    // Rebuild the transport on the new channel.
     this.transport?.close()
     this.transport = null
     this.wantConnected = false
