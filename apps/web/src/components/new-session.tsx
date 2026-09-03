@@ -53,7 +53,22 @@ export function NewSession({ onClose }: { onClose: () => void }) {
       </div>
 
       {!caps ? (
-        <p className="text-sm text-neutral-500">Loading projects…</p>
+        <div className="space-y-2 text-sm text-neutral-500">
+          <p>Loading projects…</p>
+          {/* Diagnostics: surface the live connection state so we can see where
+              this is stuck (connecting vs connected-but-no-reply). */}
+          <p className="text-xs text-neutral-600">
+            connection: <span className="text-neutral-400">{state.status}</span> · machines:{" "}
+            <span className="text-neutral-400">{state.hosts.length}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => sendCommand({ type: "projects.list" })}
+            className="rounded-lg border border-ink-line px-2.5 py-1 text-xs text-neutral-400"
+          >
+            Retry
+          </button>
+        </div>
       ) : caps.projects.length === 0 || caps.harnesses.length === 0 ? (
         <p className="text-sm text-neutral-500">
           No approved projects or installed agents on this host yet.
