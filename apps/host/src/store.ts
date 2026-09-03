@@ -37,7 +37,8 @@ export class HostStore {
         id INTEGER PRIMARY KEY CHECK (id = 1),
         api_url TEXT NOT NULL,
         host_id TEXT NOT NULL,
-        host_secret TEXT NOT NULL
+        host_secret TEXT NOT NULL,
+        user_id TEXT
       );
       CREATE TABLE IF NOT EXISTS approved_projects (
         id TEXT PRIMARY KEY,
@@ -79,23 +80,41 @@ export class HostStore {
   }
 
   /** Persist the account link from `openremote login` (device-auth result). */
-  saveAccount(link: { apiUrl: string; hostId: string; hostSecret: string }): void {
+  saveAccount(link: {
+    apiUrl: string
+    hostId: string
+    hostSecret: string
+    userId?: string
+  }): void {
     this.db.run(
-      `INSERT INTO account (id, api_url, host_id, host_secret) VALUES (1, ?, ?, ?)
+      `INSERT INTO account (id, api_url, host_id, host_secret, user_id) VALUES (1, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET api_url = excluded.api_url,
-         host_id = excluded.host_id, host_secret = excluded.host_secret`,
-      [link.apiUrl, link.hostId, link.hostSecret],
+         host_id = excluded.host_id, host_secret = excluded.host_secret,
+         user_id = excluded.user_id`,
+      [link.apiUrl, link.hostId, link.hostSecret, link.userId ?? null],
     )
   }
 
   /** Load the account link, or null if this host hasn't run `openremote login`. */
-  loadAccount(): { apiUrl: string; hostId: string; hostSecret: string } | null {
+  loadAccount(): {
+    apiUrl: string
+    hostId: string
+    hostSecret: string
+    userId: string | null
+  } | null {
     const row = this.db
-      .query<{ api_url: string; host_id: string; host_secret: string }, []>(
-        "SELECT api_url, host_id, host_secret FROM account WHERE id = 1",
+      .query<{ api_url: string; host_id: string; host_secret: string; user_id: string | null }, []>(
+        "SELECT api_url, host_id, host_secret, user_id FROM account WHERE id = 1",
       )
       .get()
-    return row ? { apiUrl: row.api_url, hostId: row.host_id, hostSecret: row.host_secret } : null
+    return row
+      ? {
+          apiUrl: row.api_url,
+          hostId: row.host_id,
+          hostSecret: row.host_secret,
+          userId: row.user_id,
+        }
+      : null
   }
 
   /** Load the machine identity, creating it on first run. `name` is refreshed. */

@@ -96,16 +96,22 @@ export class RelayClient {
    * only be built once we have a token (returns null otherwise). Both transports
    * own their own reconnect loop.
    */
+  /** Account mode: the channel to connect on, set via connectToHost(). */
+  private accountChannel: string | null = null
+
   private buildTransport(): Transport | null {
     if (this.config.kind === "ws") {
       const url = `${this.config.relayUrl.replace(/\/$/, "")}/client`
       return new WebSocketTransport({ url })
     }
-    const token = this.state.token
-    if (!token) return null
+    // Account mode: connect on the host's account-scoped channel (no pair token).
+    // Fall back to the pairing channel (pre-account / local dev) when set.
+    const channel =
+      this.accountChannel ?? (this.state.token ? pairingChannel(this.state.token) : null)
+    if (!channel) return null
     const tokenUrl = this.config.tokenUrl
     return new AblyTransport({
-      channel: pairingChannel(token),
+      channel,
       // Fetch a short-lived scoped TokenRequest from our API — no raw key here.
       authCallback: (_params, cb) => {
         fetch(tokenUrl, { method: "POST" })
@@ -116,6 +122,20 @@ export class RelayClient {
       clientId: `client:${this.clientId}`,
       RealtimeImpl: this.config.realtimeCtor,
     })
+  }
+
+  /**
+   * Connect to a specific account host over its account-scoped Ably channel
+   * (no pairing token). Signed-in browsers use this after picking a host.
+   */
+  connectToHost(channel: string): void {
+    if (this.config.kind !== "ably") return
+    this.accountChannel = channel
+    // Rebuild the transport on the new channel.
+    this.transport?.close()
+    this.transport = null
+    this.wantConnected = false
+    this.connect()
   }
 
   // ── lifecycle ──────────────────────────────────────────────────────────────

@@ -67,7 +67,7 @@ export async function runLogin(opts: {
       body: JSON.stringify({ deviceCode }),
     })
     const poll = (await pollRes.json()) as {
-      data?: { status: string; hostId?: string; hostSecret?: string }
+      data?: { status: string; hostId?: string; hostSecret?: string; userId?: string }
     }
     const status = poll.data?.status
     if (status === "approved" && poll.data?.hostId && poll.data?.hostSecret) {
@@ -75,6 +75,7 @@ export async function runLogin(opts: {
         apiUrl: api,
         hostId: poll.data.hostId,
         hostSecret: poll.data.hostSecret,
+        ...(poll.data.userId ? { userId: poll.data.userId } : {}),
       })
       log("")
       log("  ✓ Device linked. You can start the host with `openremote host`.")

@@ -25,6 +25,8 @@ type RelayContextValue = {
   pair: (token: string) => void
   unpair: () => void
   sendCommand: (command: RemoteCommand) => void
+  /** Connect to an account host's Ably channel (signed-in flow). */
+  connectToHost: (channel: string) => void
 }
 
 const RelayContext = createContext<RelayContextValue | null>(null)
@@ -81,10 +83,11 @@ export function RelayProvider({ children }: { children: ReactNode }) {
     (command: RemoteCommand) => client?.sendCommand(command),
     [client],
   )
+  const connectToHost = useCallback((channel: string) => client?.connectToHost(channel), [client])
 
   const value = useMemo<RelayContextValue>(
-    () => ({ state, pair, unpair, sendCommand }),
-    [state, pair, unpair, sendCommand],
+    () => ({ state, pair, unpair, sendCommand, connectToHost }),
+    [state, pair, unpair, sendCommand, connectToHost],
   )
 
   return <RelayContext.Provider value={value}>{children}</RelayContext.Provider>

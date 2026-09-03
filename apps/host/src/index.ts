@@ -3,7 +3,7 @@ import { createHash } from "node:crypto"
 import { basename } from "node:path"
 import type { HarnessAdapter } from "@openremote/agent-adapters"
 import { MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
-import { AblyTransport, type HostInfo, pairingChannel } from "@openremote/protocol"
+import { AblyTransport, type HostInfo, controlChannel, pairingChannel } from "@openremote/protocol"
 import { nodeRealtimeCtor } from "@openremote/protocol/ably-node"
 import { type HostConfig, loadConfig } from "./config.js"
 import { HostSessionManager } from "./host-session-manager.js"
@@ -108,15 +108,21 @@ async function main(): Promise<void> {
 
   printBanner(config, hostInfo(), identity.pairingToken)
 
-  // Transport selection: local relay WebSocket (default) or Ably (dumb pipe).
-  // Over Ably there is no relay — host and clients meet on a shared control
-  // channel scoped to this host, so the host publishes/subscribes there.
+  // Transport selection: local relay WebSocket (default) or Ably (no relay —
+  // host and clients meet on a shared channel). If this host is LINKED to an
+  // account (openremote login), use the account-scoped control channel so a
+  // signed-in browser reaches it by hostId — no pairing token needed (Beta §5.4).
+  // Otherwise fall back to the pairing-token channel (pre-account / local dev).
+  const account = store.loadAccount()
+  const ablyChannel =
+    account?.userId && account.hostId
+      ? controlChannel(account.hostId, account.userId)
+      : pairingChannel(identity.pairingToken)
   const createTransport =
     config.transport === "ably"
       ? () =>
           new AblyTransport({
-            // Phase 1 rendezvous: host + paired client meet on the token channel.
-            channel: pairingChannel(identity.pairingToken),
+            channel: ablyChannel,
             apiKey: config.ablyApiKey,
             clientId: `host:${identity.deviceId}`,
             RealtimeImpl: nodeRealtimeCtor(),

@@ -30,11 +30,12 @@ export async function POST(req: Request) {
   }
   if (row.status === "pending") return ok({ status: "pending" })
 
-  // approved → hand the secret to the daemon once, then consume it.
+  // approved → hand the secret to the daemon once, then consume it. userId is
+  // included so the host can derive its account-scoped Ably channel.
   if (row.status === "approved" && row.hostId && row.hostSecret) {
-    const { hostId, hostSecret } = row
+    const { hostId, hostSecret, userId } = row
     await consumeDeviceAuth(parsed.data.deviceCode)
-    return ok({ status: "approved", hostId, hostSecret })
+    return ok({ status: "approved", hostId, hostSecret, userId })
   }
   return ok({ status: "unknown" })
 }

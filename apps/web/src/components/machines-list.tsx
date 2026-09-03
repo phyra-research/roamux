@@ -1,15 +1,28 @@
 "use client"
 
+import { useRelay } from "@/lib/relay-provider"
 import { type ApiHost, useHosts } from "@/lib/use-hosts"
-import { useState } from "react"
+import { controlChannel } from "@openremote/protocol"
+import { useEffect, useState } from "react"
 
 /**
  * Account host list (control-plane), wired to GET /api/hosts. Shows online/
  * offline state, last-seen, and a revoke action. Distinct from the Phase 1
  * relay-derived list — this reflects hosts registered to the signed-in account.
+ *
+ * `userId` (from the signed-in session) lets us derive each host's account-scoped
+ * Ably channel and connect to it — no pairing token needed.
  */
-export function MachinesList() {
+export function MachinesList({ userId }: { userId: string | null }) {
   const { hosts, loading, error, signedIn, revoke } = useHosts()
+  const { connectToHost } = useRelay()
+
+  // Auto-connect to the first host over its account channel so its sessions show.
+  useEffect(() => {
+    if (!userId) return
+    const first = hosts[0]
+    if (first) connectToHost(controlChannel(first.id, userId))
+  }, [hosts, userId, connectToHost])
 
   if (!signedIn) {
     return (

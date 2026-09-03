@@ -45,7 +45,7 @@ export default function HomePage() {
           Machines
         </h2>
 
-        <MachinesList />
+        <MachinesList userId={auth.user?.id ?? null} />
 
         <div className="mb-3 mt-8 flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
