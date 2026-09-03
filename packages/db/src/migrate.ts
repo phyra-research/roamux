@@ -8,8 +8,20 @@ import { closeDb, db } from "./client.js"
  * Minimal forward-only migration runner. Applies every `migrations/NNNN_*.sql`
  * not yet recorded in `_migrations`, in filename order, each in a transaction.
  * Run with `bun run --cwd packages/db migrate` (needs DATABASE_URL).
+ *
+ * Single source of truth: the repo-root `supabase/migrations/` folder — the same
+ * files Supabase's GitHub integration applies on push. Our runner exists for
+ * local dev (Docker Postgres) and one-off manual runs; Supabase Cloud gets them
+ * via the integration. Keep both in sync by editing only `supabase/migrations`.
  */
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "migrations")
+const MIGRATIONS_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "supabase",
+  "migrations",
+)
 
 export async function migrate(): Promise<string[]> {
   const sql = db()
