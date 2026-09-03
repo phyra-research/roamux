@@ -17,6 +17,7 @@ import { useEffect, useState } from "react"
 export function MachinesList({ userId }: { userId: string | null }) {
   const { hosts, loading, error, signedIn, revoke } = useHosts()
   const { connectToHost } = useRelay()
+  const [showAdd, setShowAdd] = useState(false)
 
   // Auto-connect to the first host over its account channel so its sessions show.
   useEffect(() => {
@@ -37,16 +38,42 @@ export function MachinesList({ userId }: { userId: string | null }) {
   }
   if (loading) return <Empty>Loading machines…</Empty>
   if (error) return <Empty>Couldn’t load machines: {error}</Empty>
+  // No machines → onboarding is the whole view.
   if (hosts.length === 0) {
     return <Onboarding />
   }
 
+  // With machines: list them, plus an always-available "Add machine" that reveals
+  // the install instructions on demand.
   return (
-    <ul className="space-y-2">
-      {hosts.map((host) => (
-        <HostRow key={host.id} host={host} onRevoke={() => revoke(host.id)} />
-      ))}
-    </ul>
+    <div className="space-y-2">
+      <ul className="space-y-2">
+        {hosts.map((host) => (
+          <HostRow key={host.id} host={host} onRevoke={() => revoke(host.id)} />
+        ))}
+      </ul>
+
+      {showAdd ? (
+        <div className="space-y-2">
+          <Onboarding />
+          <button
+            type="button"
+            onClick={() => setShowAdd(false)}
+            className="text-xs text-neutral-500"
+          >
+            Close
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowAdd(true)}
+          className="w-full rounded-xl border border-dashed border-ink-line px-4 py-3 text-sm text-neutral-400 transition-colors hover:text-neutral-200"
+        >
+          + Add a machine
+        </button>
+      )}
+    </div>
   )
 }
 
