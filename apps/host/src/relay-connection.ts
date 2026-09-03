@@ -1,4 +1,3 @@
-import type { HarnessAdapter } from "@openremote/agent-adapters"
 import {
   ClientToRelayEnvelopeSchema,
   type HostInfo,
@@ -10,13 +9,14 @@ import {
   serialize,
 } from "@openremote/protocol"
 import { handleCommand } from "./command-handler.js"
+import type { HostSessionManager } from "./host-session-manager.js"
 import { IdempotencyCache } from "./idempotency-cache.js"
 import { RunTracker } from "./run-tracker.js"
 import type { HostStore } from "./store.js"
 
 export type RelayConnectionOptions = {
   relayUrl: string
-  adapter: HarnessAdapter
+  manager: HostSessionManager
   store: HostStore
   deviceId: string
   pairingToken: string
@@ -92,7 +92,7 @@ export class RelayConnection {
 
   private async sendSnapshot(): Promise<void> {
     try {
-      const sessions = await this.opts.adapter.listSessions()
+      const sessions = await this.opts.manager.listSessions()
       this.send({ kind: "sessions.snapshot", sessions })
     } catch (err) {
       this.log(`failed to list sessions: ${(err as Error).message}`)
@@ -128,7 +128,7 @@ export class RelayConnection {
     }
 
     try {
-      const replies = await handleCommand(this.opts.adapter, msg.command)
+      const replies = await handleCommand(this.opts.manager, msg.command)
       for (const reply of replies) this.send(reply)
     } catch (err) {
       this.log(`command ${msg.command.type} failed: ${(err as Error).message}`)
@@ -147,7 +147,9 @@ export class RelayConnection {
     if (this.eventPumpStarted) return
     this.eventPumpStarted = true
     void (async () => {
-      for await (const { sessionId, event } of this.opts.adapter.events()) {
+      const primary = this.opts.manager.primary()
+      if (!primary) return
+      for await (const { sessionId, event } of primary.events()) {
         if (this.closed) break
         for (const { event: outEvent, runId } of this.runTracker.annotate(sessionId, event)) {
           const sequence = this.opts.store.nextSequence(sessionId)

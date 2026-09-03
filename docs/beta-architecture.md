@@ -440,6 +440,12 @@ These are the honest execution risks — mostly **not** architectural:
   acceptance asserting resume). **Amendment:** treat robust resume as
   **best-effort per adapter**, with clean `INTERRUPTED` as the honest default —
   not a beta gate.
+  _P3 status:_ **client-side recovery is done** — a phone refresh / device
+  switch / brief reconnect re-requests `sessions.list` and rehydrates from the
+  host's snapshot (tested). **Daemon-restart resume is best-effort:** OpenCode
+  sessions persist server-side, so `listSessions` re-surfaces them after a
+  restart; the mock adapter and in-memory run state do not survive. Full
+  gapless replay of missed events is the deferred M3 sequence-resume work.
 - **R3 — Ably lock-in is deeper than "swap a byte pipe."** The `Transport`
   interface protects message-passing, but we lean on Ably *features* (durable
   sessions, history, presence). Leaving Ably later means **re-implementing a

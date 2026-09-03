@@ -2,6 +2,7 @@ import {
   AblyTransport,
   type AgentEvent,
   type AgentSession,
+  type HostCapabilities,
   type HostInfo,
   type RelayToClientEnvelope,
   RelayToClientEnvelopeSchema,
@@ -36,6 +37,8 @@ export type RelayState = {
   streaming: Record<string, string>
   /** sessionId → pending permission (if any) */
   permissions: Record<string, PendingPermission>
+  /** Host capabilities for the New Session picker (approved projects + harnesses). */
+  capabilities: HostCapabilities | null
 }
 
 const EMPTY: RelayState = {
@@ -46,6 +49,7 @@ const EMPTY: RelayState = {
   timelines: {},
   streaming: {},
   permissions: {},
+  capabilities: null,
 }
 
 /** The initial (pre-connect) snapshot, exported for the provider's fallback. */
@@ -204,6 +208,10 @@ export class RelayClient {
       }
       case "sessions.snapshot": {
         this.set({ sessions: dedupeSessions(msg.sessions) })
+        return
+      }
+      case "projects.snapshot": {
+        this.set({ capabilities: msg.capabilities })
         return
       }
       case "host.state": {

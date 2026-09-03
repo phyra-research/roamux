@@ -1,15 +1,23 @@
 #!/usr/bin/env bun
+import { createHash } from "node:crypto"
+import { basename } from "node:path"
 import type { HarnessAdapter } from "@openremote/agent-adapters"
 import { MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
 import { AblyTransport, type HostInfo, pairingChannel } from "@openremote/protocol"
 import { nodeRealtimeCtor } from "@openremote/protocol/ably-node"
 import { type HostConfig, loadConfig } from "./config.js"
+import { HostSessionManager } from "./host-session-manager.js"
 import { defaultHostName, runLogin } from "./login.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
 import { RelayConnection } from "./relay-connection.js"
 import { HostStore } from "./store.js"
 
 const log = (msg: string) => console.log(`[host] ${msg}`)
+
+/** Stable projectId derived from an absolute path (so re-approve is idempotent). */
+function projectIdFor(absPath: string): string {
+  return `proj_${createHash("sha256").update(absPath).digest("hex").slice(0, 12)}`
+}
 
 /** `openremote login` — link this machine to an account via device-auth. */
 async function loginCommand(): Promise<void> {
@@ -79,6 +87,17 @@ async function main(): Promise<void> {
   const { adapter, opencode } = await buildAdapter(config)
   await adapter.start()
 
+  // The manager owns session creation across harnesses. Register this adapter
+  // and approve the default project so it's immediately usable from a client.
+  const manager = new HostSessionManager(store)
+  manager.register(adapter)
+  const defaultId = projectIdFor(config.defaultProjectPath)
+  store.approveProject({
+    id: defaultId,
+    label: basename(config.defaultProjectPath) || config.defaultProjectPath,
+    absPath: config.defaultProjectPath,
+  })
+
   const hostInfo = (): HostInfo => ({
     deviceId: identity.deviceId,
     name: identity.name,
@@ -106,7 +125,7 @@ async function main(): Promise<void> {
 
   const connection = new RelayConnection({
     relayUrl: config.relayUrl,
-    adapter,
+    manager,
     store,
     deviceId: identity.deviceId,
     pairingToken: identity.pairingToken,
