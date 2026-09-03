@@ -346,4 +346,57 @@ describe("vertical slice (milestone 1)", () => {
     conn.stop()
     await dupAdapter.stop()
   })
+
+  // ── #29 recovery: a client that (re)joins gets a fresh snapshot ────────────
+  test("late-joining client rehydrates sessions on connect (recovery)", async () => {
+    // A brand-new client connecting to the already-running host+relay (from
+    // beforeAll) must receive the current session snapshot without any prior
+    // state — this is what a phone refresh / device switch relies on.
+    const late = new TestClient(`ws://127.0.0.1:${port}/client`)
+    await late.open()
+    late.pair(PAIRING_TOKEN)
+    late.command({ type: "sessions.list" })
+    await new Promise((r) => setTimeout(r, 150))
+
+    const snap = late.messages.find((m) => m.kind === "sessions.snapshot")
+    expect(snap).toBeDefined()
+    if (snap?.kind === "sessions.snapshot") {
+      // The seeded session is still there — state survived the client's absence.
+      expect(snap.sessions.some((s) => s.id === "mock-session-1")).toBe(true)
+    }
+    late.close()
+  })
+
+  // ── #31 acceptance subset: New Session flow end to end ─────────────────────
+  test("client lists projects, creates a session, and it runs (acceptance)", async () => {
+    const client = new TestClient(`ws://127.0.0.1:${port}/client`)
+    await client.open()
+    client.pair(PAIRING_TOKEN)
+    await new Promise((r) => setTimeout(r, 80))
+
+    // 1. Ask the host for its approved projects + installed harnesses.
+    client.command({ type: "projects.list" })
+    await new Promise((r) => setTimeout(r, 120))
+    const projSnap = client.messages.find((m) => m.kind === "projects.snapshot")
+    expect(projSnap).toBeDefined()
+    if (projSnap?.kind !== "projects.snapshot") return
+    expect(projSnap.capabilities.projects.length).toBeGreaterThan(0)
+    expect(projSnap.capabilities.harnesses.some((h) => h.id === "mock")).toBe(true)
+
+    // 2. Create a session against the first approved project + harness.
+    const projectId = projSnap.capabilities.projects[0]!.id
+    client.command({
+      type: "session.create",
+      projectId,
+      harnessType: "mock",
+      initialPrompt: "inspect this repo",
+    })
+
+    // 3. The new session runs and streams to completion.
+    await client.waitForEvent((types) => types.includes("agent.completed"), 8000)
+    const types = client.events.map((e) => e.event.type)
+    expect(types).toContain("assistant.message")
+    expect(types).toContain("agent.completed")
+    client.close()
+  })
 })
