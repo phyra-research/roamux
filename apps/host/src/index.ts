@@ -9,6 +9,7 @@ import { type HostConfig, loadConfig } from "./config.js"
 import { HostSessionManager } from "./host-session-manager.js"
 import { defaultHostName, runLogin } from "./login.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
+import { preflightOpenCode } from "./preflight.js"
 import { RelayConnection } from "./relay-connection.js"
 import { HostStore } from "./store.js"
 
@@ -81,6 +82,20 @@ function printBanner(config: HostConfig, info: HostInfo, pairingToken: string): 
 
 async function main(): Promise<void> {
   const config = loadConfig()
+
+  // Preflight: with the OpenCode adapter, make sure OpenCode is installed and a
+  // model is configured — otherwise the agent silently returns nothing. Print
+  // actionable guidance and exit cleanly instead of crashing later.
+  if (config.adapter === "opencode" && !config.opencodeUrl) {
+    const pre = await preflightOpenCode()
+    if (!pre.ok) {
+      console.log("")
+      for (const line of pre.messages) console.log(`  ${line}`)
+      console.log("")
+      process.exit(1)
+    }
+  }
+
   const store = new HostStore(config.dbPath)
   const identity = store.loadOrCreateIdentity(config.hostName)
 

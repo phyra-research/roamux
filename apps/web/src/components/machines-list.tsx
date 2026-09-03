@@ -1,5 +1,6 @@
 "use client"
 
+import { Onboarding } from "@/components/onboarding"
 import { useRelay } from "@/lib/relay-provider"
 import { type ApiHost, useHosts } from "@/lib/use-hosts"
 import { controlChannel } from "@openremote/protocol"
@@ -37,12 +38,7 @@ export function MachinesList({ userId }: { userId: string | null }) {
   if (loading) return <Empty>Loading machines…</Empty>
   if (error) return <Empty>Couldn’t load machines: {error}</Empty>
   if (hosts.length === 0) {
-    return (
-      <Empty>
-        No machines yet. Run <code className="text-neutral-400">openremote login</code> on a
-        computer.
-      </Empty>
-    )
+    return <Onboarding />
   }
 
   return (
