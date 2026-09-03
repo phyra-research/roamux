@@ -190,11 +190,55 @@ async function main(): Promise<void> {
   process.on("SIGTERM", shutdown)
 }
 
-// Subcommand dispatch: `login` runs device-auth; anything else runs the host.
-const command = process.argv[2]
-const entry = command === "login" ? loginCommand : main
+const VERSION = "0.1.0"
 
-entry().catch((err) => {
+function printHelp(): void {
+  console.log(`
+  OpenRemote — run coding agents on your machine, control them from anywhere.
+
+  Usage:
+    openremote login              Link this machine to your OpenRemote account
+    openremote host               Start the host daemon (run your agents)
+    openremote help               Show this help
+    openremote version            Show the version
+
+  Common options (via env):
+    DEFAULT_PROJECT_PATH=<dir>    Project the agent works on (default: current dir)
+    AGENT_ADAPTER=opencode|mock   Which agent runtime (default: opencode)
+    HOST_NAME=<name>              Display name for this machine
+
+  Quick start:
+    1) openremote login           # approve in your browser
+    2) cd ~/your/project
+    3) openremote host            # now control it from the web app
+`)
+}
+
+// Subcommand dispatch.
+const command = process.argv[2] ?? "host"
+
+async function dispatch(): Promise<void> {
+  switch (command) {
+    case "login":
+      return loginCommand()
+    case "help":
+    case "--help":
+    case "-h":
+      return void printHelp()
+    case "version":
+    case "--version":
+    case "-v":
+      return void console.log(`openremote ${VERSION}`)
+    case "host":
+      return main()
+    default:
+      console.error(`unknown command: ${command}\n`)
+      printHelp()
+      process.exit(1)
+  }
+}
+
+dispatch().catch((err) => {
   console.error("[host] fatal:", err)
   process.exit(1)
 })

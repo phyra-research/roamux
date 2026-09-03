@@ -23,6 +23,45 @@ Phone / Browser ──ws──▶ Relay ──ws──▶ Host Daemon ──loca
 
 ---
 
+## Install & use (hosted beta)
+
+The hosted control surface runs at **https://open-remote-sigma.vercel.app**.
+Install the host CLI on any machine you want to control:
+
+```sh
+curl -fsSL https://open-remote-sigma.vercel.app/install.sh | sh
+```
+
+Then link the machine to your account and start it:
+
+```sh
+openremote login          # opens a code — approve it in your browser (sign in with GitHub)
+cd ~/your/project         # the project the agent should work on
+openremote host           # this machine now appears online in the web app
+```
+
+Open the web app on your **phone or browser**, sign in, pick your machine →
+**New Session** → choose the project + agent + a task → **Start Agent**, and
+watch it run live. Requires [OpenCode](https://opencode.ai) installed with a
+model configured (`opencode auth login`).
+
+CLI commands:
+
+| Command | What it does |
+| --- | --- |
+| `openremote login` | Link this machine to your account (device-auth) |
+| `openremote host` | Start the host daemon (run/serve your agents) |
+| `openremote help` | Usage |
+| `openremote version` | Version |
+
+Useful env for `openremote host`: `DEFAULT_PROJECT_PATH=<dir>`,
+`AGENT_ADAPTER=opencode|mock`, `HOST_NAME=<name>`.
+
+> Building the CLI yourself: `OPENREMOTE_API_URL=… OPENREMOTE_ABLY_KEY=… bun run
+> scripts/build-cli.ts` → binaries in `apps/web/public/cli/` (served at `/cli/*`).
+
+---
+
 ## What's implemented (V0)
 
 Milestones **1 and 2 are complete and verified end-to-end** (mock adapter *and*

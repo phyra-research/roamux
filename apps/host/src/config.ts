@@ -19,24 +19,37 @@ export type HostConfig = {
   ablyApiKey: string | undefined
 }
 
+import { homedir } from "node:os"
+import { join } from "node:path"
+import { BAKED_ABLY_KEY, BAKED_API_URL } from "./baked-config.js"
+
 function env(name: string): string | undefined {
   const v = process.env[name]
   return v === undefined || v === "" ? undefined : v
 }
 
+/** Whether the process is a distributed binary (has baked config). */
+export const IS_PACKAGED = BAKED_API_URL !== undefined
+
 export function loadConfig(): HostConfig {
-  const adapter = (env("AGENT_ADAPTER") ?? "mock") as AdapterKind
+  const adapter = (env("AGENT_ADAPTER") ?? (IS_PACKAGED ? "opencode" : "mock")) as AdapterKind
   if (adapter !== "mock" && adapter !== "opencode") {
     throw new Error(`AGENT_ADAPTER must be "mock" or "opencode", got "${adapter}"`)
   }
-  const transport = (env("TRANSPORT") ?? "ws") as TransportKind
+  // Packaged binaries default to Ably (they reach a hosted account); running from
+  // source defaults to the local relay WS.
+  const transport = (env("TRANSPORT") ?? (IS_PACKAGED ? "ably" : "ws")) as TransportKind
   if (transport !== "ws" && transport !== "ably") {
     throw new Error(`TRANSPORT must be "ws" or "ably", got "${transport}"`)
   }
-  const ablyApiKey = env("ABLY_API_KEY")
+  const ablyApiKey = env("ABLY_API_KEY") ?? BAKED_ABLY_KEY
   if (transport === "ably" && !ablyApiKey) {
-    throw new Error("TRANSPORT=ably requires ABLY_API_KEY")
+    throw new Error("TRANSPORT=ably requires ABLY_API_KEY (or a packaged build)")
   }
+  // Packaged binaries store state under ~/.openremote so they work from any cwd.
+  const defaultDb = IS_PACKAGED
+    ? join(homedir(), ".openremote", "host.sqlite")
+    : ".openremote/host.sqlite"
   return {
     relayUrl: env("RELAY_URL") ?? "ws://127.0.0.1:8787",
     hostName: env("HOST_NAME") ?? hostname(),
@@ -45,8 +58,8 @@ export function loadConfig(): HostConfig {
     // The project directory OpenCode operates on. Resolved to absolute so the
     // spawn cwd and the directory-scoped session listing always agree.
     defaultProjectPath: resolve(env("DEFAULT_PROJECT_PATH") ?? process.cwd()),
-    dbPath: env("HOST_DB_PATH") ?? ".openremote/host.sqlite",
-    webUrl: env("WEB_URL") ?? "http://localhost:3000",
+    dbPath: env("HOST_DB_PATH") ?? defaultDb,
+    webUrl: env("WEB_URL") ?? BAKED_API_URL ?? "http://localhost:3000",
     transport,
     ablyApiKey,
   }
