@@ -113,13 +113,14 @@ export class RelayClient {
     return new AblyTransport({
       channel,
       // Fetch a short-lived scoped TokenRequest from our API — no raw key here.
+      // NOTE: do NOT set clientId — the token already carries it (client:{userId}).
+      // Passing a different one causes Ably's "clientId mismatch" error.
       authCallback: (_params, cb) => {
         fetch(tokenUrl, { method: "POST" })
           .then((r) => r.json())
           .then((tokenRequest) => cb(null, tokenRequest))
           .catch((err) => cb((err as Error).message, null))
       },
-      clientId: `client:${this.clientId}`,
       RealtimeImpl: this.config.realtimeCtor,
     })
   }
