@@ -130,3 +130,109 @@ export async function listProjectsForHost(
   `
   return rows.map((r) => HostProjectRow.parse(r))
 }
+
+// ── Device authorization (openremote login) ──────────────────────────────────
+
+export type DeviceAuthRow = {
+  id: string
+  deviceCode: string
+  userCode: string
+  hostName: string
+  platform: string | null
+  status: string
+  userId: string | null
+  hostId: string | null
+  hostSecret: string | null
+  expiresAt: Date
+}
+
+const DA_COLS = `
+  id, device_code AS "deviceCode", user_code AS "userCode", host_name AS "hostName",
+  platform, status, user_id AS "userId", host_id AS "hostId",
+  host_secret AS "hostSecret", expires_at AS "expiresAt"
+`
+
+/** Start a device-auth request; the daemon polls with deviceCode. */
+export async function createDeviceAuth(
+  input: { deviceCode: string; userCode: string; hostName: string; platform?: string | null },
+  sql: Sql = db(),
+): Promise<DeviceAuthRow> {
+  const rows = await sql`
+    INSERT INTO device_auth (device_code, user_code, host_name, platform)
+    VALUES (${input.deviceCode}, ${input.userCode}, ${input.hostName}, ${input.platform ?? null})
+    RETURNING ${sql.unsafe(DA_COLS)}
+  `
+  return rows[0] as DeviceAuthRow
+}
+
+/** Look up a pending request by the user-typed code (browser approval screen). */
+export async function getDeviceAuthByUserCode(
+  userCode: string,
+  sql: Sql = db(),
+): Promise<DeviceAuthRow | null> {
+  const rows = await sql`
+    SELECT ${sql.unsafe(DA_COLS)} FROM device_auth
+    WHERE user_code = ${userCode} AND status = 'pending' AND expires_at > now()
+  `
+  return (rows[0] as DeviceAuthRow | undefined) ?? null
+}
+
+/** Look up by device code (daemon poll). */
+export async function getDeviceAuthByDeviceCode(
+  deviceCode: string,
+  sql: Sql = db(),
+): Promise<DeviceAuthRow | null> {
+  const rows = await sql`
+    SELECT ${sql.unsafe(DA_COLS)} FROM device_auth WHERE device_code = ${deviceCode}
+  `
+  return (rows[0] as DeviceAuthRow | undefined) ?? null
+}
+
+/** Approve a device request: bind it to the user + host, store the host secret. */
+export async function approveDeviceAuth(
+  userCode: string,
+  userId: string,
+  hostId: string,
+  hostSecret: string,
+  sql: Sql = db(),
+): Promise<boolean> {
+  const rows = await sql`
+    UPDATE device_auth
+    SET status = 'approved', user_id = ${userId}, host_id = ${hostId},
+        host_secret = ${hostSecret}
+    WHERE user_code = ${userCode} AND status = 'pending' AND expires_at > now()
+    RETURNING id
+  `
+  return rows.length > 0
+}
+
+/** Mark an approved request consumed once the daemon has fetched the secret. */
+export async function consumeDeviceAuth(deviceCode: string, sql: Sql = db()): Promise<void> {
+  await sql`UPDATE device_auth SET status = 'consumed', host_secret = NULL WHERE device_code = ${deviceCode}`
+}
+
+// ── Host credentials ─────────────────────────────────────────────────────────
+
+/** Store a host credential HASH (never the raw secret). */
+export async function createHostCredential(
+  hostId: string,
+  credentialHash: string,
+  sql: Sql = db(),
+): Promise<void> {
+  await sql`INSERT INTO host_credentials (host_id, credential_hash) VALUES (${hostId}, ${credentialHash})`
+}
+
+/** Verify a host credential hash is active (not revoked) for a host. */
+export async function hostCredentialIsValid(
+  hostId: string,
+  credentialHash: string,
+  sql: Sql = db(),
+): Promise<boolean> {
+  const rows = await sql`
+    SELECT hc.id FROM host_credentials hc
+    JOIN hosts h ON h.id = hc.host_id
+    WHERE hc.host_id = ${hostId} AND hc.credential_hash = ${credentialHash}
+      AND hc.revoked_at IS NULL AND h.revoked_at IS NULL
+  `
+  return rows.length > 0
+}
