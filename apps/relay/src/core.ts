@@ -106,8 +106,12 @@ export class RelayCore {
       return
     }
 
-    // events + sessions.snapshot: fan out verbatim to this host's clients.
-    if (msg.kind === "event" || msg.kind === "sessions.snapshot") {
+    // events + snapshots: fan out verbatim to this host's clients.
+    if (
+      msg.kind === "event" ||
+      msg.kind === "sessions.snapshot" ||
+      msg.kind === "projects.snapshot"
+    ) {
       this.forwardToClientsOf(host.token, raw)
     }
   }

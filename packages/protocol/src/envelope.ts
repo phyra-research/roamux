@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { RemoteCommandSchema } from "./commands.js"
 import { AgentEventSchema } from "./events.js"
-import { AgentSessionSchema, HostInfoSchema } from "./session.js"
+import { AgentSessionSchema, HostCapabilitiesSchema, HostInfoSchema } from "./session.js"
 
 export const PROTOCOL_VERSION = 1 as const
 
@@ -81,11 +81,18 @@ const HostStateSchema = z.object({
   info: HostInfoSchema,
 })
 
+/** Host's approved projects + installed harnesses (for the New Session picker). */
+const ProjectsSnapshotSchema = z.object({
+  kind: z.literal("projects.snapshot"),
+  capabilities: HostCapabilitiesSchema,
+})
+
 export const HostToRelaySchema = z.discriminatedUnion("kind", [
   HostHelloSchema,
   EventMessageSchema,
   SessionsSnapshotSchema,
   HostStateSchema,
+  ProjectsSnapshotSchema,
 ])
 
 // ── Direction: relay → client (server-originated control) ────────────────────
@@ -113,6 +120,7 @@ export const RelayToClientSchema = z.discriminatedUnion("kind", [
   EventMessageSchema,
   SessionsSnapshotSchema,
   HostStateSchema,
+  ProjectsSnapshotSchema,
 ])
 
 // ── Enveloped wire types ─────────────────────────────────────────────────────

@@ -2,13 +2,15 @@
 
 import { AppHeader } from "@/components/app-header"
 import { MachinesList } from "@/components/machines-list"
+import { NewSession } from "@/components/new-session"
 import { PairGate } from "@/components/pair-gate"
 import { useRelay } from "@/lib/relay-provider"
 import Link from "next/link"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 export default function HomePage() {
   const { state, sendCommand } = useRelay()
+  const [creating, setCreating] = useState(false)
 
   // Refresh the session list whenever we (re)connect.
   useEffect(() => {
@@ -34,9 +36,27 @@ export default function HomePage() {
 
         <MachinesList />
 
-        <h2 className="mb-3 mt-8 text-xs font-semibold uppercase tracking-widest text-neutral-500">
-          Sessions
-        </h2>
+        <div className="mb-3 mt-8 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+            Sessions
+          </h2>
+          {state.status === "connected" && !creating && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="text-xs font-medium text-emerald-400"
+            >
+              + New
+            </button>
+          )}
+        </div>
+
+        {creating && (
+          <div className="mb-3">
+            <NewSession onClose={() => setCreating(false)} />
+          </div>
+        )}
+
         {state.sessions.length === 0 ? (
           <div className="rounded-xl border border-dashed border-ink-line px-4 py-8 text-center text-sm text-neutral-500">
             No sessions yet.

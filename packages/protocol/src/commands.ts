@@ -23,12 +23,22 @@ export const RemoteCommandSchema = z.discriminatedUnion("type", [
     response: z.enum(["allow", "deny"]),
   }),
   z.object({
+    // Create a daemon-owned session. Clients reference an APPROVED projectId and
+    // a harnessType — never a filesystem path or shell string (Beta §13.2). The
+    // daemon maps projectId → local path and validates the harness is installed.
     type: z.literal("session.create"),
-    projectPath: z.string(),
+    projectId: z.string(),
+    harnessType: z.string(),
+    initialPrompt: z.string().optional(),
   }),
   z.object({
     // Ask the host to (re)send its current session list. Cheap, idempotent.
     type: z.literal("sessions.list"),
+  }),
+  z.object({
+    // Ask the host to (re)send its approved projects + installed harnesses, so
+    // the New Session UI can populate its pickers.
+    type: z.literal("projects.list"),
   }),
 ])
 

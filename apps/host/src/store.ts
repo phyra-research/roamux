@@ -39,7 +39,43 @@ export class HostStore {
         host_id TEXT NOT NULL,
         host_secret TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS approved_projects (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        abs_path TEXT NOT NULL
+      );
     `)
+  }
+
+  /**
+   * Approve a local directory as a project. Clients later reference `id`; the
+   * daemon maps it to `absPath` (never sent over the wire). `id` is stable and
+   * derived from the path so re-approving the same dir is idempotent.
+   */
+  approveProject(input: { id: string; label: string; absPath: string }): void {
+    this.db.run(
+      `INSERT INTO approved_projects (id, label, abs_path) VALUES (?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET label = excluded.label, abs_path = excluded.abs_path`,
+      [input.id, input.label, input.absPath],
+    )
+  }
+
+  /** List approved projects (id + label for the client; path stays host-local). */
+  listApprovedProjects(): { id: string; label: string; absPath: string }[] {
+    return this.db
+      .query<{ id: string; label: string; abs_path: string }, []>(
+        "SELECT id, label, abs_path FROM approved_projects ORDER BY label ASC",
+      )
+      .all()
+      .map((r) => ({ id: r.id, label: r.label, absPath: r.abs_path }))
+  }
+
+  /** Resolve an approved projectId to its local absolute path, or null. */
+  resolveProjectPath(projectId: string): string | null {
+    const row = this.db
+      .query<{ abs_path: string }, [string]>("SELECT abs_path FROM approved_projects WHERE id = ?")
+      .get(projectId)
+    return row?.abs_path ?? null
   }
 
   /** Persist the account link from `openremote login` (device-auth result). */

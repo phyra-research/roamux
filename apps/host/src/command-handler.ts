@@ -1,45 +1,58 @@
-import type { HarnessAdapter } from "@openremote/agent-adapters"
 import type { HostToRelay, RemoteCommand } from "@openremote/protocol"
+import type { HostSessionManager } from "./host-session-manager.js"
 
 /**
- * Translate a validated RemoteCommand into HarnessAdapter calls. Pure with
- * respect to transport: it takes an adapter and returns any host→relay messages
- * that should be sent back immediately (e.g. a fresh sessions snapshot). Live
- * agent output arrives asynchronously via adapter.events(), not from here.
+ * Translate a validated RemoteCommand into HostSessionManager / adapter calls.
+ * Pure with respect to transport: returns any host→relay messages to send back
+ * immediately (e.g. a fresh sessions/projects snapshot). Live agent output
+ * arrives asynchronously via the adapter event stream, not from here.
  *
  * This is the entire server-side authorization surface: only these command
- * types do anything. Anything else is a no-op (defense in depth on top of the
- * relay's Zod validation).
+ * types do anything, and session.create is validated (approved project +
+ * installed harness) inside the manager. There is no arbitrary-path or
+ * arbitrary-command escape hatch (CLAUDE.md §3, Beta §13.2).
  */
 export async function handleCommand(
-  adapter: HarnessAdapter,
+  manager: HostSessionManager,
   command: RemoteCommand,
 ): Promise<HostToRelay[]> {
+  const adapter = manager.primary()
+
   switch (command.type) {
     case "prompt.send": {
-      await adapter.sendPrompt(command.sessionId, command.text)
+      await adapter?.sendPrompt(command.sessionId, command.text)
       return []
     }
 
     case "session.abort": {
-      await adapter.abortSession(command.sessionId)
+      await adapter?.abortSession(command.sessionId)
       return []
     }
 
     case "permission.respond": {
-      await adapter.respondToPermission(command.sessionId, command.permissionId, command.response)
+      await adapter?.respondToPermission(command.sessionId, command.permissionId, command.response)
       return []
     }
 
     case "session.create": {
-      await adapter.createSession(command.projectPath)
-      const sessions = await adapter.listSessions()
+      // Validated inside the manager (approved projectId + installed harness).
+      await manager.createSession({
+        projectId: command.projectId,
+        harnessType: command.harnessType,
+        initialPrompt: command.initialPrompt,
+      })
+      const sessions = await manager.listSessions()
       return [{ kind: "sessions.snapshot", sessions }]
     }
 
     case "sessions.list": {
-      const sessions = await adapter.listSessions()
+      const sessions = await manager.listSessions()
       return [{ kind: "sessions.snapshot", sessions }]
+    }
+
+    case "projects.list": {
+      const capabilities = await manager.capabilities()
+      return [{ kind: "projects.snapshot", capabilities }]
     }
   }
 }

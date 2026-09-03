@@ -10,6 +10,7 @@ import {
   serialize,
 } from "@openremote/protocol"
 import { startRelayServer } from "@openremote/relay/server"
+import { HostSessionManager } from "./host-session-manager.js"
 import { RelayConnection } from "./relay-connection.js"
 import { HostStore } from "./store.js"
 
@@ -19,6 +20,17 @@ import { HostStore } from "./store.js"
  * plus commands flowing the other way. This is the automated version of the
  * milestone-1 acceptance test.
  */
+
+/** Wrap an adapter in a HostSessionManager (its own in-memory store) for tests. */
+function managerFor(
+  a: MockAgentAdapter,
+  s: HostStore = new HostStore(":memory:"),
+): HostSessionManager {
+  s.approveProject({ id: "proj_demo", label: "demo", absPath: "/tmp/demo" })
+  const m = new HostSessionManager(s)
+  m.register(a)
+  return m
+}
 
 const PAIRING_TOKEN = "e2e-token-123"
 
@@ -116,7 +128,7 @@ beforeAll(async () => {
 
   host = new RelayConnection({
     relayUrl: `ws://127.0.0.1:${port}`,
-    adapter,
+    manager: managerFor(adapter, store),
     store,
     deviceId: "host-dev",
     pairingToken: PAIRING_TOKEN,
@@ -199,7 +211,7 @@ describe("vertical slice (milestone 1)", () => {
     await slowAdapter.start()
     const conn = new RelayConnection({
       relayUrl: `ws://127.0.0.1:${port}`,
-      adapter: slowAdapter,
+      manager: managerFor(slowAdapter),
       store: new HostStore(":memory:"),
       deviceId: "host-2",
       pairingToken: "stop-token",
@@ -236,7 +248,7 @@ describe("vertical slice (milestone 1)", () => {
     await permAdapter.start()
     const conn = new RelayConnection({
       relayUrl: `ws://127.0.0.1:${port}`,
-      adapter: permAdapter,
+      manager: managerFor(permAdapter),
       store: new HostStore(":memory:"),
       deviceId: "host-3",
       pairingToken: "perm-token",
@@ -291,7 +303,7 @@ describe("vertical slice (milestone 1)", () => {
     await dupAdapter.start()
     const conn = new RelayConnection({
       relayUrl: `ws://127.0.0.1:${port}`,
-      adapter: dupAdapter,
+      manager: managerFor(dupAdapter),
       store: new HostStore(":memory:"),
       deviceId: "host-dup",
       pairingToken: "dup-token",
