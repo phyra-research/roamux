@@ -8,17 +8,17 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
 } from "react"
-import { RelayClient, type RelayState } from "./relay-client"
+import {
+  type ClientTransportConfig,
+  INITIAL_STATE,
+  RelayClient,
+  type RelayState,
+} from "./relay-client"
 
 const RELAY_URL = process.env.NEXT_PUBLIC_RELAY_URL ?? "ws://127.0.0.1:8787"
-
-// Phase 1 note: the web app talks to the host over the local relay WebSocket.
-// The Ably transport works end-to-end for host↔client (proven headlessly), but
-// bundling Ably's browser build into the Next production build is deferred to
-// Phase 2, where we'll use `ably/react` + short-lived token auth (the setup we
-// need for accounts anyway). See docs/beta-architecture.md.
 
 type RelayContextValue = {
   state: RelayState
@@ -29,23 +29,58 @@ type RelayContextValue = {
 
 const RelayContext = createContext<RelayContextValue | null>(null)
 
-export function RelayProvider({ children }: { children: ReactNode }) {
-  // One client instance for the whole app lifetime.
-  const client = useMemo(() => new RelayClient({ kind: "ws", relayUrl: RELAY_URL }), [])
+/**
+ * Resolve the transport config. In Ably mode the browser authenticates via a
+ * short-lived scoped token from /api/ably/token (never a raw key) and loads
+ * Ably's browser build via a dynamic import — kept out of the default WS build
+ * by comparing the RAW inlined env literal so webpack can dead-code-eliminate it.
+ */
+async function resolveConfig(): Promise<ClientTransportConfig> {
+  if (process.env.NEXT_PUBLIC_TRANSPORT === "ably") {
+    const { loadBrowserRealtimeCtor } = await import("@openremote/protocol/ably-browser")
+    return {
+      kind: "ably",
+      tokenUrl: "/api/ably/token",
+      realtimeCtor: await loadBrowserRealtimeCtor(),
+    }
+  }
+  return { kind: "ws", relayUrl: RELAY_URL }
+}
 
-  const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot)
+export function RelayProvider({ children }: { children: ReactNode }) {
+  // The client is created once the transport config resolves (sync for WS, after
+  // a dynamic import for Ably).
+  const [client, setClient] = useState<RelayClient | null>(null)
 
   useEffect(() => {
-    client.connect()
-    return () => client.disconnect()
-  }, [client])
+    let live = true
+    let created: RelayClient | null = null
+    void resolveConfig().then((config) => {
+      if (!live) return
+      created = new RelayClient(config)
+      setClient(created)
+      created.connect()
+    })
+    return () => {
+      live = false
+      created?.disconnect()
+    }
+  }, [])
 
-  // STABLE callbacks — identity never changes across renders. Pages call
-  // sendCommand inside effects keyed on [status, sendCommand]; a churning
-  // identity would loop them.
-  const pair = useCallback((token: string) => client.pair(token), [client])
-  const unpair = useCallback(() => client.unpair(), [client])
-  const sendCommand = useCallback((command: RemoteCommand) => client.sendCommand(command), [client])
+  const subscribe = useMemo(
+    () => (client ? client.subscribe : (_fn: () => void) => () => {}),
+    [client],
+  )
+  const getSnapshot = useMemo(() => (client ? client.getSnapshot : () => INITIAL_STATE), [client])
+  const state = useSyncExternalStore(subscribe, getSnapshot, () => INITIAL_STATE)
+
+  // STABLE callbacks — identity depends only on `client` (set once).
+  const pair = useCallback((token: string) => client?.pair(token), [client])
+  const unpair = useCallback(() => client?.unpair(), [client])
+  const sendCommand = useCallback(
+    (command: RemoteCommand) => client?.sendCommand(command),
+    [client],
+  )
 
   const value = useMemo<RelayContextValue>(
     () => ({ state, pair, unpair, sendCommand }),

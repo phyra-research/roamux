@@ -2,7 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "rootDir": "src"
+    "rootDir": "src",
+    // DOM libs: ably-browser.ts loads the Ably CDN script in the browser.
+    "lib": ["ES2023", "DOM"]
   },
   "include": ["src/**/*.ts"]
 }

@@ -23,7 +23,9 @@ export type ClientTransportConfig =
   | { kind: "ws"; relayUrl: string }
   // realtimeCtor is resolved via a dynamic import in the provider so Ably's
   // browser build only loads in an async chunk when Ably mode is actually used.
-  | { kind: "ably"; apiKey: string; realtimeCtor: RealtimeCtor }
+  // authCallback fetches a short-lived scoped token from our API — the browser
+  // never holds the raw Ably key (Beta §10.3). `tokenUrl` is that API endpoint.
+  | { kind: "ably"; tokenUrl: string; realtimeCtor: RealtimeCtor }
 
 /** The full client-side view of the world, recomputed into an immutable snapshot. */
 export type RelayState = {
@@ -101,9 +103,16 @@ export class RelayClient {
     }
     const token = this.state.token
     if (!token) return null
+    const tokenUrl = this.config.tokenUrl
     return new AblyTransport({
       channel: pairingChannel(token),
-      apiKey: this.config.apiKey,
+      // Fetch a short-lived scoped TokenRequest from our API — no raw key here.
+      authCallback: (_params, cb) => {
+        fetch(tokenUrl, { method: "POST" })
+          .then((r) => r.json())
+          .then((tokenRequest) => cb(null, tokenRequest))
+          .catch((err) => cb((err as Error).message, null))
+      },
       clientId: `client:${this.clientId}`,
       RealtimeImpl: this.config.realtimeCtor,
     })
