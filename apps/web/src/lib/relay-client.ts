@@ -152,6 +152,15 @@ export class RelayClient {
     this.set({ status: "connecting" })
 
     transport.onOpen(() => {
+      // Account mode: no pairing token — announce ourselves so the host replies
+      // with its state + session/project snapshots (which flips us to connected).
+      if (this.accountChannel) {
+        this.set({ status: "connected" })
+        this.sendHello("")
+        this.sendCommand({ type: "sessions.list" })
+        this.sendCommand({ type: "projects.list" })
+        return
+      }
       const token = this.state.token
       if (token) this.sendHello(token)
       else this.set({ status: "unpaired" })

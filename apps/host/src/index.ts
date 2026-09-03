@@ -141,8 +141,45 @@ async function main(): Promise<void> {
   })
   connection.start()
 
+  // If linked to an account, report "online" to the API so the machine list
+  // shows a green dot, and heartbeat periodically. Best-effort — failures are
+  // logged, never fatal.
+  let heartbeat: ReturnType<typeof setInterval> | undefined
+  if (account?.hostId && account.hostSecret) {
+    const beat = async (status: "online" | "offline") => {
+      try {
+        await fetch(`${account.apiUrl.replace(/\/$/, "")}/api/host/heartbeat`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ hostId: account.hostId, hostSecret: account.hostSecret, status }),
+        })
+      } catch (err) {
+        log(`heartbeat failed: ${(err as Error).message}`)
+      }
+    }
+    await beat("online")
+    heartbeat = setInterval(() => void beat("online"), 30_000)
+  }
+
   const shutdown = async () => {
     log("shutting down …")
+    if (heartbeat) clearInterval(heartbeat)
+    if (account?.hostId && account.hostSecret) {
+      // Best-effort "offline" so the UI updates promptly.
+      try {
+        await fetch(`${account.apiUrl.replace(/\/$/, "")}/api/host/heartbeat`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            hostId: account.hostId,
+            hostSecret: account.hostSecret,
+            status: "offline",
+          }),
+        })
+      } catch {
+        // ignore — we're exiting anyway
+      }
+    }
     connection.stop()
     await adapter.stop()
     opencode?.stop()
