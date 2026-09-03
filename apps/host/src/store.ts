@@ -33,7 +33,33 @@ export class HostStore {
         session_id TEXT PRIMARY KEY,
         seq INTEGER NOT NULL DEFAULT 0
       );
+      CREATE TABLE IF NOT EXISTS account (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        api_url TEXT NOT NULL,
+        host_id TEXT NOT NULL,
+        host_secret TEXT NOT NULL
+      );
     `)
+  }
+
+  /** Persist the account link from `openremote login` (device-auth result). */
+  saveAccount(link: { apiUrl: string; hostId: string; hostSecret: string }): void {
+    this.db.run(
+      `INSERT INTO account (id, api_url, host_id, host_secret) VALUES (1, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET api_url = excluded.api_url,
+         host_id = excluded.host_id, host_secret = excluded.host_secret`,
+      [link.apiUrl, link.hostId, link.hostSecret],
+    )
+  }
+
+  /** Load the account link, or null if this host hasn't run `openremote login`. */
+  loadAccount(): { apiUrl: string; hostId: string; hostSecret: string } | null {
+    const row = this.db
+      .query<{ api_url: string; host_id: string; host_secret: string }, []>(
+        "SELECT api_url, host_id, host_secret FROM account WHERE id = 1",
+      )
+      .get()
+    return row ? { apiUrl: row.api_url, hostId: row.host_id, hostSecret: row.host_secret } : null
   }
 
   /** Load the machine identity, creating it on first run. `name` is refreshed. */

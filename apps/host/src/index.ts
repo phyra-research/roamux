@@ -4,11 +4,24 @@ import { MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
 import { AblyTransport, type HostInfo, pairingChannel } from "@openremote/protocol"
 import { nodeRealtimeCtor } from "@openremote/protocol/ably-node"
 import { type HostConfig, loadConfig } from "./config.js"
+import { defaultHostName, runLogin } from "./login.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
 import { RelayConnection } from "./relay-connection.js"
 import { HostStore } from "./store.js"
 
 const log = (msg: string) => console.log(`[host] ${msg}`)
+
+/** `openremote login` — link this machine to an account via device-auth. */
+async function loginCommand(): Promise<void> {
+  const config = loadConfig()
+  const store = new HostStore(config.dbPath)
+  const apiUrl = process.env.OPENREMOTE_API_URL ?? config.webUrl
+  try {
+    await runLogin({ apiUrl, hostName: defaultHostName(), store })
+  } finally {
+    store.close()
+  }
+}
 
 async function buildAdapter(
   config: HostConfig,
@@ -115,7 +128,11 @@ async function main(): Promise<void> {
   process.on("SIGTERM", shutdown)
 }
 
-main().catch((err) => {
+// Subcommand dispatch: `login` runs device-auth; anything else runs the host.
+const command = process.argv[2]
+const entry = command === "login" ? loginCommand : main
+
+entry().catch((err) => {
   console.error("[host] fatal:", err)
   process.exit(1)
 })
