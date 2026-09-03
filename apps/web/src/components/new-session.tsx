@@ -17,10 +17,15 @@ export function NewSession({ onClose }: { onClose: () => void }) {
   const [prompt, setPrompt] = useState("")
   const [starting, setStarting] = useState(false)
 
-  // Ask the host for its projects + harnesses when this opens.
+  // Ask the host for its projects + harnesses. Keep asking (every 1.5s) until
+  // they arrive — robust against connection-timing races: the send is a no-op
+  // when not yet connected, and once the account channel is up the host replies.
   useEffect(() => {
-    if (state.status === "connected") sendCommand({ type: "projects.list" })
-  }, [state.status, sendCommand])
+    if (caps) return
+    sendCommand({ type: "projects.list" })
+    const t = setInterval(() => sendCommand({ type: "projects.list" }), 1500)
+    return () => clearInterval(t)
+  }, [caps, sendCommand])
 
   // Default the pickers once capabilities arrive.
   useEffect(() => {
