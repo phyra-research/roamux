@@ -3,25 +3,36 @@
 import { AppHeader } from "@/components/app-header"
 import { MachinesList } from "@/components/machines-list"
 import { NewSession } from "@/components/new-session"
-import { PairGate } from "@/components/pair-gate"
 import { useRelay } from "@/lib/relay-provider"
+import { useAuth } from "@/lib/use-auth"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
 export default function HomePage() {
   const { state, sendCommand } = useRelay()
+  const auth = useAuth()
+  const router = useRouter()
   const [creating, setCreating] = useState(false)
+
+  // Auth gate: send unauthenticated visitors to sign in.
+  useEffect(() => {
+    if (!auth.loading && !auth.signedIn) router.replace("/login")
+  }, [auth.loading, auth.signedIn, router])
 
   // Refresh the session list whenever we (re)connect.
   useEffect(() => {
     if (state.status === "connected") sendCommand({ type: "sessions.list" })
   }, [state.status, sendCommand])
 
-  if (state.status !== "connected" && !state.token) {
+  // While checking auth (or redirecting), show nothing but the header.
+  if (auth.loading || !auth.signedIn) {
     return (
       <>
         <AppHeader />
-        <PairGate />
+        <main className="flex flex-1 items-center justify-center px-6 text-sm text-neutral-500">
+          {auth.loading ? "Loading…" : "Redirecting to sign in…"}
+        </main>
       </>
     )
   }
