@@ -117,6 +117,10 @@ OpenRemote protocol  ⇕  AgentAdapter  ⇕  OpenCode
 
 ## Prerequisites
 
+> 🛠️ **Contributing / running locally?** See **[CONTRIBUTING.md](CONTRIBUTING.md)**
+> for the full clone → install → run → test guide (no cloud accounts needed for
+> most work).
+
 - **[Bun](https://bun.sh)** ≥ 1.4 (`curl -fsSL https://bun.sh/install | bash`)
 - **[OpenCode](https://opencode.ai)** for the real path
   (`bun add -g opencode-ai`, then `opencode auth login` to configure a model)

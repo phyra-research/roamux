@@ -4,6 +4,10 @@ This file is the contract for **every** contributor to this repo, human or AI
 coding agent (Claude Code, OpenCode, Cursor, Aider, …). Read it before you
 touch code. If you are an agent, treat this as a hard constraint, not advice.
 
+> **New here / setting up locally?** See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
+> the clone → install → run → test guide. This file is the *rules*; that one is
+> the *how-to-run*.
+
 > **Status (keep this current):** OpenRemote is **deployed and live** — a
 > multi-host beta at `https://open-remote-sigma.vercel.app`. Phases P0–P3 have
 > shipped (foundations, Ably transport, accounts+multi-host, agent beta) plus a
@@ -162,17 +166,56 @@ enabled via `git config core.hooksPath .githooks`). A change is not "done" until
 5. Docs updated if you changed how to run/configure/deploy anything — including
    the **Status** banner at the top of this file if the milestone picture moved.
 
-## 9. For AI agents specifically
+## 9. For AI agents specifically (Claude Code, OpenCode, Cursor, Aider, …)
 
-- Prefer editing existing files over adding new ones. Match surrounding style.
-- **Never commit or push unless the human asks.** When you do commit, don't let
-  the pre-commit hook choke on the large `apps/web/public/cli/*` binaries —
-  restore them out of the diff and commit source only (see issue #44).
-- If a task pushes you to break §2 or §3, do **not** do it silently — surface the
-  conflict and propose an alternative.
-- Tests must never depend on a real model, network, or a specific machine.
-  Use `MockAgentAdapter`; gate DB tests behind `RUN_DB_TESTS=1`.
-- Leave the repo in a working state (`bun run check` green) at the end of a task.
+Most contributors here drive a coding agent to build, commit, and open PRs.
+These are hard rules for that workflow — follow them exactly.
+
+### Working style
+- Prefer editing existing files over adding new ones. Match surrounding style;
+  comment the *why*, not the *what*.
+- Understand before you change: read [`CONTRIBUTING.md`](CONTRIBUTING.md) (how to
+  run) and the relevant `docs/` before touching an unfamiliar area.
+- Tests must never depend on a real model, network, or a specific machine. Use
+  `MockAgentAdapter`; gate DB tests behind `RUN_DB_TESTS=1`.
+- If a task pushes you to break §2 (boundaries) or §3 (security), do **not** do
+  it silently — stop, surface the conflict, and propose an alternative.
+
+### Definition of done (every task)
+Leave the repo green. Before you consider a change complete:
+```sh
+bun run check          # typecheck + Biome + tests — MUST pass
+# if you touched apps/web:
+cd apps/web && bun run build   # the Vercel deploy gate
+```
+
+### Git / branch / commit / PR flow
+- **Never commit or push unless the human asks.** When asked:
+  - Work on a **branch off `main`** (e.g. `feat/…`, `fix/…`), never commit
+    straight to `main` unless told to.
+  - Keep commits focused; write a clear body explaining *why*.
+  - End every commit message with the co-author trailer the human uses.
+- **Opening a PR:** target `main`, give it a descriptive title + a body that says
+  what changed, why, and how it was verified. Link issues with `Closes #NN`.
+- **This repo's git trap — the CLI binaries:** `apps/web/public/cli/*` are large
+  (~60–80 MB) committed binaries. Staging them can **OOM-kill `git commit`** and
+  the pre-commit hook chokes on them. For any PR that is *not* deliberately
+  updating the binaries: **restore them out of the diff and commit source only**
+  (`git checkout -- apps/web/public/cli/`). Moving them off git is issue #44.
+- The pre-commit hook (`.githooks/pre-commit`, enable with
+  `git config core.hooksPath .githooks`) runs `bun run check`. Don't bypass it
+  with `--no-verify` unless the human asks or you've already run `check` green
+  manually (e.g. to sidestep the binary OOM above).
+
+### Secrets & the deployed system — do not touch without being asked
+- **Never** print, commit, or bake real secrets (Ably key, Supabase
+  service-role key, DB password, host secrets, access tokens). They live in
+  `.env` (gitignored), Vercel env, or Supabase — not in code or the repo.
+- Assume the live app (`open-remote-sigma.vercel.app`), Supabase Cloud, and Ably
+  are **production**. Don't run migrations, wipe data, rotate keys, or redeploy
+  unless the human explicitly asks.
+- `.env` and `apps/host/.openremote*` / `.openremote-live/` are local/host state —
+  never commit them.
 
 See also `AGENTS.md` (a symlink of this file) so non-Claude agents pick up the
 same rules.
