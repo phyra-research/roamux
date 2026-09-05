@@ -70,32 +70,32 @@ AGENT_ADAPTER=opencode DEFAULT_PROJECT_PATH=/abs/path/to/a/project bun run dev:h
 The host spawns `opencode serve` on `127.0.0.1` and drives a real model. A failed
 model call surfaces as **✗ Agent failed: …** (not a silent hang).
 
-### Level C — accounts, DB & API (Supabase-shaped, but all local)
+### Level C — accounts, DB & API, **with NO GitHub/Supabase login**
 
-For work on auth, the API routes, host registry, or device-login — run against a
-**local Postgres** (no Supabase Cloud needed):
-
-```sh
-bun run db:up        # start a Postgres 16 container on :5432
-bun run db:migrate   # apply supabase/migrations/* to it
-```
-
-Then run the web app with the local DB and a **dev-auth bypass** (so you don't
-need real GitHub OAuth locally):
+For work on auth, the API routes, host registry, or device-login. This runs the
+full web UI + API against a **local Postgres**, and **bypasses login entirely** —
+no GitHub, no Supabase Cloud, no accounts.
 
 ```sh
-# in apps/web, or export these in your shell:
-DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/openremote \
-OPENREMOTE_DEV_AUTH_SUBJECT=$(uuidgen) \
-bun run dev:web
+bun run db:up                 # local Postgres 16 on :5432 (once)
+bun run db:migrate            # apply supabase/migrations/*
+
+cp .env.local.example apps/web/.env.local   # ready-made "full local, no auth" env
+bun run dev:web               # http://localhost:3000 — you're "signed in" as a dev user
 ```
 
-- `OPENREMOTE_DEV_AUTH_SUBJECT` (a uuid) makes the API treat you as a fixed
-  signed-in user **only when Supabase env is unset** — never in prod.
-- Hit the API: `GET /api/health`, `GET /api/hosts`, `POST /api/hosts`, etc.
-- To test **real** Supabase Auth (GitHub OAuth) locally, bring up the full
-  Supabase stack (`supabase start`) and set `NEXT_PUBLIC_SUPABASE_URL` /
-  `NEXT_PUBLIC_SUPABASE_ANON_KEY`. See [`DEPLOY.md`](DEPLOY.md) for the shape.
+Next.js auto-loads `apps/web/.env.local` (gitignored) — note it goes in the web
+app dir, where Next reads it. How the bypass works: with no
+Supabase env set, the API treats you as the fixed `OPENREMOTE_DEV_AUTH_SUBJECT`
+user, and the UI's login gate is satisfied by `/api/me` — so you never see a
+GitHub sign-in. Hit the API directly too: `GET /api/health`, `GET /api/hosts`,
+`POST /api/hosts`, …
+
+> **Want to test REAL GitHub login locally?** Bring up the full Supabase stack
+> (`supabase start`) and set `NEXT_PUBLIC_SUPABASE_URL` /
+> `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local` (this disables the bypass).
+> See [`DEPLOY.md`](DEPLOY.md) for the GitHub-OAuth shape. Most work does NOT
+> need this.
 
 > **Env is everything.** The same code runs locally or in prod, differing only by
 > environment variables — see [`.env.example`](.env.example) for the full list.
