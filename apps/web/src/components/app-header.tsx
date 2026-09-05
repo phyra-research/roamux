@@ -3,6 +3,7 @@
 import { useRelay } from "@/lib/relay-provider"
 import Link from "next/link"
 import { StatusPill } from "./status-pill"
+import { UserMenu } from "./user-menu"
 
 export function AppHeader({ back }: { back?: { href: string; label: string } }) {
   const { state } = useRelay()
@@ -23,7 +24,10 @@ export function AppHeader({ back }: { back?: { href: string; label: string } }) 
             OpenRemote
           </Link>
         </div>
-        <StatusPill status={state.status} />
+        <div className="flex items-center gap-2">
+          <StatusPill status={state.status} />
+          <UserMenu />
+        </div>
       </div>
     </header>
   )
