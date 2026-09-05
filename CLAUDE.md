@@ -112,6 +112,28 @@ only by environment variables (never hardcode URLs/keys).
 | Web + API | `bun run dev` | **Vercel** (`apps/web`) |
 | Host | `bun run apps/host/src/index.ts` | installed `openremote` binary |
 
+### Run it locally (quick reference — full guide in [`CONTRIBUTING.md`](CONTRIBUTING.md))
+
+**No cloud accounts / no GitHub login are needed to develop.** Three levels:
+
+```sh
+# A) Whole slice with a FAKE agent — no cloud, no key, no login:
+bun install && bun run dev            # relay + host(mock) + web at :3000
+
+# B) Real OpenCode agent (needs `opencode auth login`):
+AGENT_ADAPTER=opencode DEFAULT_PROJECT_PATH=/abs/project bun run dev:host
+
+# C) Full UI + API + DB with NO GitHub/Supabase (dev-auth bypass):
+bun run db:up && bun run db:migrate               # local Postgres
+cp .env.local.example apps/web/.env.local         # ready-made no-auth env
+bun run dev:web                                    # "signed in" as a dev user
+```
+
+Level C works because with Supabase env unset, the API treats you as the fixed
+`OPENREMOTE_DEV_AUTH_SUBJECT` user and the UI login gate is satisfied by
+`/api/me` — so you never hit a GitHub sign-in. Tests: `bun test` (no DB) /
+`bun run db:test` (needs `db:up`).
+
 - Migrations live in **`supabase/migrations/`** (single source; Supabase's GitHub
   integration applies them, and `bun run db:migrate` runs the same files locally).
 - The CLI (`apps/host`) compiles to a single binary via
