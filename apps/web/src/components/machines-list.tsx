@@ -1,30 +1,18 @@
 "use client"
 
 import { Onboarding } from "@/components/onboarding"
-import { useRelay } from "@/lib/relay-provider"
 import { type ApiHost, useHosts } from "@/lib/use-hosts"
-import { controlChannel } from "@openremote/protocol"
-import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useState } from "react"
 
 /**
- * Account host list (control-plane), wired to GET /api/hosts. Shows online/
- * offline state, last-seen, and a revoke action. Distinct from the Phase 1
- * relay-derived list — this reflects hosts registered to the signed-in account.
- *
- * `userId` (from the signed-in session) lets us derive each host's account-scoped
- * Ably channel and connect to it — no pairing token needed.
+ * Account host list (control-plane), wired to GET /api/hosts. Each machine links
+ * to /host/[id] — sessions are PER HOST, so you enter a machine to see and start
+ * its sessions. No global auto-connect (that mixed sessions across hosts).
  */
-export function MachinesList({ userId }: { userId: string | null }) {
+export function MachinesList() {
   const { hosts, loading, error, signedIn, revoke } = useHosts()
-  const { connectToHost } = useRelay()
   const [showAdd, setShowAdd] = useState(false)
-
-  // Auto-connect to the first host over its account channel so its sessions show.
-  useEffect(() => {
-    if (!userId) return
-    const first = hosts[0]
-    if (first) connectToHost(controlChannel(first.id, userId))
-  }, [hosts, userId, connectToHost])
 
   if (!signedIn) {
     return (
@@ -85,13 +73,14 @@ function HostRow({ host, onRevoke }: { host: ApiHost; onRevoke: () => void }) {
       <span
         className={`h-2.5 w-2.5 rounded-full ${online ? "bg-emerald-400" : "bg-neutral-600"}`}
       />
-      <div className="min-w-0 flex-1">
+      {/* Tapping the machine opens its own sessions (per-host). */}
+      <Link href={`/host/${encodeURIComponent(host.id)}`} className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-neutral-100">{host.name}</div>
         <div className="text-xs text-neutral-500">
           {host.status}
           {host.platform ? ` · ${host.platform}` : ""}
         </div>
-      </div>
+      </Link>
       {confirming ? (
         <div className="flex items-center gap-2">
           <button
@@ -114,6 +103,7 @@ function HostRow({ host, onRevoke }: { host: ApiHost; onRevoke: () => void }) {
           type="button"
           onClick={() => setConfirming(true)}
           className="text-xs text-neutral-600 transition-colors hover:text-neutral-400"
+          aria-label="Host options"
         >
           ⋯
         </button>

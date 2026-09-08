@@ -140,6 +140,15 @@ export class RelayClient {
     this.transport?.close()
     this.transport = null
     this.wantConnected = false
+    // Clear the previous host's data so we never show one host's sessions/
+    // projects under another. They repopulate from the new host's snapshots.
+    this.set({
+      sessions: [],
+      capabilities: null,
+      timelines: {},
+      streaming: {},
+      permissions: {},
+    })
     this.connect()
   }
 
