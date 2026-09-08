@@ -2,30 +2,24 @@
 
 import { AppHeader } from "@/components/app-header"
 import { MachinesList } from "@/components/machines-list"
-import { NewSession } from "@/components/new-session"
-import { useRelay } from "@/lib/relay-provider"
 import { useAuth } from "@/lib/use-auth"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 
+/**
+ * Home = the machine list. Sessions live PER HOST — tap a machine to open its
+ * sessions and start new ones on it (see /host/[id]). Sessions are never
+ * flattened across hosts here.
+ */
 export default function HomePage() {
-  const { state, sendCommand } = useRelay()
   const auth = useAuth()
   const router = useRouter()
-  const [creating, setCreating] = useState(false)
 
   // Auth gate: send unauthenticated visitors to sign in.
   useEffect(() => {
     if (!auth.loading && !auth.signedIn) router.replace("/login")
   }, [auth.loading, auth.signedIn, router])
 
-  // Refresh the session list whenever we (re)connect.
-  useEffect(() => {
-    if (state.status === "connected") sendCommand({ type: "sessions.list" })
-  }, [state.status, sendCommand])
-
-  // While checking auth (or redirecting), show nothing but the header.
   if (auth.loading || !auth.signedIn) {
     return (
       <>
@@ -44,68 +38,8 @@ export default function HomePage() {
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-500">
           Machines
         </h2>
-
-        <MachinesList userId={auth.user?.id ?? null} />
-
-        <div className="mb-3 mt-8 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
-            Sessions
-          </h2>
-          {state.status === "connected" && !creating && (
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className="text-xs font-medium text-emerald-400"
-            >
-              + New
-            </button>
-          )}
-        </div>
-
-        {creating && (
-          <div className="mb-3">
-            <NewSession onClose={() => setCreating(false)} />
-          </div>
-        )}
-
-        {state.sessions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-ink-line px-4 py-8 text-center text-sm text-neutral-500">
-            No sessions yet.
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {state.sessions.map((s) => (
-              <li key={s.id}>
-                <Link
-                  href={`/session/${encodeURIComponent(s.id)}`}
-                  className="block rounded-xl border border-ink-line bg-ink-soft px-4 py-3 transition-colors active:bg-ink-line"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-neutral-100">{s.title}</div>
-                      <div className="truncate text-xs text-neutral-500">
-                        {s.model ?? "agent"}
-                        {s.projectPath ? ` · ${s.projectPath}` : ""}
-                      </div>
-                    </div>
-                    <SessionBadge status={s.status} />
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        <MachinesList />
       </main>
     </>
   )
-}
-
-function SessionBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    idle: "text-neutral-500",
-    running: "text-emerald-400",
-    waiting: "text-amber-400",
-    error: "text-red-400",
-  }
-  return <span className={`shrink-0 text-xs ${map[status] ?? "text-neutral-500"}`}>{status}</span>
 }
