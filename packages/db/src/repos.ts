@@ -116,6 +116,21 @@ export async function revokeHost(
   return rows.length > 0
 }
 
+/** Rename a host (ownership-scoped). Returns the updated row, or null if not owned. */
+export async function renameHost(
+  hostId: string,
+  userId: string,
+  name: string,
+  sql: Sql = db(),
+): Promise<HostRow | null> {
+  const rows = await sql`
+    UPDATE hosts SET name = ${name}
+    WHERE id = ${hostId} AND user_id = ${userId}
+    RETURNING ${sql.unsafe(HOST_COLS)}
+  `
+  return rows[0] ? HostRow.parse(rows[0]) : null
+}
+
 // ── Host projects ────────────────────────────────────────────────────────────
 
 export async function listProjectsForHost(
