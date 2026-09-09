@@ -1,6 +1,7 @@
 "use client"
 
 import { AppHeader } from "@/components/app-header"
+import { InstallPrompt } from "@/components/install-prompt"
 import { MachinesList } from "@/components/machines-list"
 import { useAuth } from "@/lib/use-auth"
 import { useRouter } from "next/navigation"
@@ -38,6 +39,7 @@ export default function HomePage() {
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-500">
           Machines
         </h2>
+        <InstallPrompt />
         <MachinesList />
       </main>
     </>
