@@ -12,6 +12,7 @@ import {
   getHostForUser,
   hostCredentialIsValid,
   listHostsForUser,
+  renameHost,
   revokeHost,
   updateHostStatus,
   upsertUserByAuthSubject,
@@ -89,6 +90,21 @@ maybe("repos against real Postgres", () => {
     // Another user cannot revoke it.
     const other = await upsertUserByAuthSubject(crypto.randomUUID(), null, sql!)
     expect(await revokeHost(host.id, other.id, sql!)).toBe(false)
+  })
+
+  test("rename is ownership-scoped", async () => {
+    const userA = await upsertUserByAuthSubject(crypto.randomUUID(), null, sql!)
+    const userB = await upsertUserByAuthSubject(crypto.randomUUID(), null, sql!)
+    const host = await createHost({ userId: userA.id, name: "my-macbook" }, sql!)
+
+    // Owner renames → returns the updated row and the change persists.
+    const renamed = await renameHost(host.id, userA.id, "will-macbook", sql!)
+    expect(renamed?.name).toBe("will-macbook")
+    expect((await getHostForUser(host.id, userA.id, sql!))?.name).toBe("will-macbook")
+
+    // Non-owner rename → null, name unchanged.
+    expect(await renameHost(host.id, userB.id, "hijacked", sql!)).toBeNull()
+    expect((await getHostForUser(host.id, userA.id, sql!))?.name).toBe("will-macbook")
   })
 
   // ── #24 exit test: strict two-host routing + revoke at the data layer ──────

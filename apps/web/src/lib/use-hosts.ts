@@ -53,5 +53,33 @@ export function useHosts() {
     [refresh],
   )
 
-  return { ...state, refresh, revoke }
+  const rename = useCallback(
+    async (hostId: string, name: string) => {
+      // Optimistic: show the new name immediately, then reconcile against the
+      // row the API returns (or refresh to revert if the call failed).
+      setState((s) => ({
+        ...s,
+        hosts: s.hosts.map((h) => (h.id === hostId ? { ...h, name } : h)),
+      }))
+      try {
+        const res = await fetch(`/api/hosts/${hostId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name }),
+        })
+        const body = await res.json()
+        if (!res.ok || !body.ok) throw new Error(body.error ?? "rename failed")
+        const host = body.data.host as { name: string }
+        setState((s) => ({
+          ...s,
+          hosts: s.hosts.map((h) => (h.id === hostId ? { ...h, name: host.name } : h)),
+        }))
+      } catch {
+        await refresh()
+      }
+    },
+    [refresh],
+  )
+
+  return { ...state, refresh, revoke, rename }
 }
