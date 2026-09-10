@@ -102,6 +102,9 @@ GitHub sign-in. Hit the API directly too: `GET /api/health`, `GET /api/hosts`,
 > The prod stack (Vercel + Supabase Cloud + Ably) and how to deploy is in
 > [`DEPLOY.md`](DEPLOY.md).
 
+To keep a host online across terminal-close / logout / reboot, install it as a
+background service: `openremote service install` (see [`docs/service.md`](docs/service.md)).
+
 ## 4. Tests
 
 ```sh

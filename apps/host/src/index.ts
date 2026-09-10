@@ -11,6 +11,7 @@ import { defaultHostName, runLogin } from "./login.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
 import { preflightOpenCode } from "./preflight.js"
 import { RelayConnection } from "./relay-connection.js"
+import { installService, printServiceStatus, uninstallService } from "./service/index.js"
 import { HostStore } from "./store.js"
 
 const log = (msg: string) => console.log(`[host] ${msg}`)
@@ -29,6 +30,42 @@ async function loginCommand(): Promise<void> {
     await runLogin({ apiUrl, hostName: defaultHostName(), store })
   } finally {
     store.close()
+  }
+}
+
+function serviceUsage(): void {
+  console.log(`
+  Usage:
+    openremote service install     Install + start the host as a background service
+    openremote service uninstall   Stop + remove the background service
+    openremote service status      Show whether the service is installed and running
+
+  macOS uses a launchd agent, Linux a \`systemd --user\` unit. The service inherits
+  HOST_NAME / TRANSPORT / AGENT_ADAPTER / HOST_DB_PATH / OPENCODE_URL from the shell
+  you run \`install\` in. See docs/service.md.
+`)
+}
+
+/** `openremote service <install|uninstall|status>` — manage the background service. */
+function serviceCommand(action: string | undefined): void {
+  try {
+    switch (action) {
+      case "install":
+        installService()
+        break
+      case "uninstall":
+        uninstallService()
+        break
+      case "status":
+        printServiceStatus()
+        break
+      default:
+        serviceUsage()
+        if (action !== undefined) process.exitCode = 1
+    }
+  } catch (err) {
+    console.error(`\n  ✗ ${(err as Error).message}\n`)
+    process.exit(1)
   }
 }
 
@@ -214,6 +251,7 @@ function printHelp(): void {
   Usage:
     openremote login              Link this machine to your OpenRemote account
     openremote host               Start the host daemon (run your agents)
+    openremote service <cmd>      Run the host as a background service (install/uninstall/status)
     openremote help               Show this help
     openremote version            Show the version
 
@@ -246,6 +284,8 @@ async function dispatch(): Promise<void> {
       return void console.log(`openremote ${VERSION}`)
     case "host":
       return main()
+    case "service":
+      return void serviceCommand(process.argv[3])
     default:
       console.error(`unknown command: ${command}\n`)
       printHelp()
