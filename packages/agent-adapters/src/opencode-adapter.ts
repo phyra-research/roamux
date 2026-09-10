@@ -1,7 +1,9 @@
 import { type OpencodeClient, createOpencodeClient } from "@opencode-ai/sdk"
-import type { AgentSession } from "@openremote/protocol"
+import type { AgentSession, ChangedFile, DiffSnapshot } from "@openremote/protocol"
 import { EventQueue } from "./event-queue.js"
+import { mergeChangedFiles, readGitWorkingTree } from "./git-diff.js"
 import type { HarnessAdapter, SessionEvent } from "./types.js"
+import { makeUnifiedDiff } from "./unified-diff.js"
 
 /**
  * OpenCodeAdapter — the ONLY place `@opencode-ai/sdk` may be imported
@@ -16,6 +18,8 @@ export type OpenCodeAdapterOptions = {
   baseUrl: string
   /** Default working directory for new sessions / prompts. */
   directory?: string
+  /** Test seam: override the git-backed working-tree read (defaults to real git). */
+  gitDiff?: (cwd: string) => ChangedFile[]
 }
 
 export class OpenCodeAdapter implements HarnessAdapter {
@@ -27,6 +31,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
   private readonly client: OpencodeClient
   private readonly queue = new EventQueue<SessionEvent>()
   private readonly directory: string
+  private readonly gitDiff: (cwd: string) => ChangedFile[]
   private eventLoop: Promise<void> | null = null
   private stopped = false
 
@@ -59,6 +64,7 @@ export class OpenCodeAdapter implements HarnessAdapter {
   constructor(opts: OpenCodeAdapterOptions) {
     this.directory = opts.directory ?? process.cwd()
     this.client = createOpencodeClient({ baseUrl: opts.baseUrl })
+    this.gitDiff = opts.gitDiff ?? readGitWorkingTree
   }
 
   /**
@@ -120,6 +126,70 @@ export class OpenCodeAdapter implements HarnessAdapter {
       path: { id: sessionId },
       query: { directory: this.directory },
     })
+  }
+
+  /**
+   * The project's uncommitted changes (working tree vs. git HEAD) — the same set
+   * `git status` shows, which is what a user checks against.
+   *
+   * `git` is authoritative: OpenCode 1.18.x's `session.diff` / `file.status` /
+   * `Session.summary` return zero even for sessions that clearly edited files
+   * (verified via curl on 1.18.27). We still fold in OpenCode's view when it has
+   * one, but git wins on every path it reports.
+   */
+  async requestDiff(sessionId: string): Promise<DiffSnapshot> {
+    const fromGit = this.gitDiff(this.directory)
+    const fromOpenCode = await this.openCodeDiff(sessionId).catch(() => [] as ChangedFile[])
+    return { files: mergeChangedFiles(fromGit, fromOpenCode) }
+  }
+
+  /** OpenCode's own idea of the diff — best-effort, usually empty on 1.18.x. */
+  private async openCodeDiff(sessionId: string): Promise<ChangedFile[]> {
+    const statusRes = await this.client.file.status({ query: { directory: this.directory } })
+    const changed = (statusRes.data ?? []) as OcFile[]
+    if (changed.length === 0) return []
+
+    const sessionDiffs = new Map<string, OcFileDiff>()
+    try {
+      const dRes = await this.client.session.diff({
+        path: { id: sessionId },
+        query: { directory: this.directory },
+      })
+      for (const fd of (dRes.data ?? []) as OcFileDiff[]) sessionDiffs.set(fd.file, fd)
+    } catch {
+      // Session diff is best-effort; the file list already stands on its own.
+    }
+
+    const files: ChangedFile[] = []
+    for (const f of changed.slice(0, MAX_DIFF_FILES)) {
+      files.push({
+        path: f.path,
+        status: f.status,
+        additions: f.added ?? 0,
+        deletions: f.removed ?? 0,
+        patch: await this.patchFor(f, sessionDiffs.get(f.path)),
+      })
+    }
+    return files
+  }
+
+  /** Best available unified-diff text for one changed file. */
+  private async patchFor(f: OcFile, sd: OcFileDiff | undefined): Promise<string> {
+    if (sd) return makeUnifiedDiff(f.path, sd.before ?? "", sd.after ?? "")
+    if (f.status === "deleted") return "" // nothing to read; the badge says enough
+    try {
+      const res = await this.client.file.read({
+        query: { directory: this.directory, path: f.path },
+      })
+      const fc = res.data as OcFileContent | undefined
+      if (fc?.diff) return fc.diff
+      if (f.status === "added" && fc?.type === "text") {
+        return makeUnifiedDiff(f.path, "", fc.content ?? "")
+      }
+    } catch {
+      // fall through to an empty patch
+    }
+    return ""
   }
 
   async respondToPermission(
@@ -364,6 +434,33 @@ type OcPermission = {
   title?: string
   pattern?: string | string[]
   metadata?: Record<string, unknown>
+}
+
+/** Cap the per-request fan-out of file.read() calls on a large uncommitted tree. */
+const MAX_DIFF_FILES = 100
+
+/** OpenCode's `GET /file/status` item: one working-tree change vs git HEAD. */
+type OcFile = {
+  path: string
+  added?: number
+  removed?: number
+  status: ChangedFile["status"]
+}
+
+/** OpenCode's `GET /file/content` result — `diff` is a unified diff vs HEAD. */
+type OcFileContent = {
+  type: "text" | "binary"
+  content?: string
+  diff?: string
+}
+
+/** OpenCode's `GET /session/{id}/diff` item: before/after file contents. */
+type OcFileDiff = {
+  file: string
+  before?: string
+  after?: string
+  additions?: number
+  deletions?: number
 }
 
 type OcToolState = {

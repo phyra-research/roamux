@@ -1,6 +1,7 @@
 "use client"
 
 import { AppHeader } from "@/components/app-header"
+import { DiffView } from "@/components/diff-view"
 import { EventLine } from "@/components/event-line"
 import { PermissionCard } from "@/components/permission-card"
 import { useRelay } from "@/lib/relay-provider"
@@ -47,6 +48,8 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       </div>
 
       <main className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        <DiffView sessionId={sessionId} />
+
         {timeline.length === 0 && !streaming && !permission ? (
           <div className="py-10 text-center text-sm text-neutral-600">
             No activity yet. Send an instruction below to get started.

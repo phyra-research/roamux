@@ -16,7 +16,7 @@ import {
   serialize,
 } from "@openremote/protocol"
 import type { RealtimeCtor } from "@openremote/protocol"
-import type { ConnectionStatus, PendingPermission, TimelineEntry } from "./types"
+import type { ConnectionStatus, DiffView, PendingPermission, TimelineEntry } from "./types"
 
 /** How the client reaches the host: via the local relay WS, or via Ably. */
 export type ClientTransportConfig =
@@ -39,6 +39,8 @@ export type RelayState = {
   streaming: Record<string, string>
   /** sessionId → pending permission (if any) */
   permissions: Record<string, PendingPermission>
+  /** sessionId → latest diff snapshot (from diff.request) */
+  diffs: Record<string, DiffView>
   /** Host capabilities for the New Session picker (approved projects + harnesses). */
   capabilities: HostCapabilities | null
 }
@@ -51,6 +53,7 @@ const EMPTY: RelayState = {
   timelines: {},
   streaming: {},
   permissions: {},
+  diffs: {},
   capabilities: null,
 }
 
@@ -148,6 +151,7 @@ export class RelayClient {
       timelines: {},
       streaming: {},
       permissions: {},
+      diffs: {},
     })
     this.connect()
   }
@@ -233,7 +237,16 @@ export class RelayClient {
   private send(
     message: { kind: "client.hello"; token: string } | { kind: "command"; command: RemoteCommand },
   ): void {
-    if (!this.transport?.isOpen) return
+    if (!this.transport?.isOpen) {
+      // Silent command loss is a recurring source of "nothing happened" bugs —
+      // e.g. a page that never opened a connection (a refreshed /session/[id]).
+      // Warn so it shows up in devtools instead of vanishing.
+      console.warn(
+        "[relay] not connected — dropped outbound",
+        message.kind === "command" ? message.command.type : message.kind,
+      )
+      return
+    }
     const env = createEnvelope(message, { deviceId: this.clientId })
     this.transport.send(serialize(env))
   }
@@ -289,6 +302,18 @@ export class RelayClient {
     event: AgentEvent,
   ): void {
     if (!sessionId) return
+
+    // diff.snapshot is a request/response payload, not timeline activity — stash
+    // it by session for <DiffView> and stop.
+    if (event.type === "diff.snapshot") {
+      this.set({
+        diffs: {
+          ...this.state.diffs,
+          [sessionId]: { files: event.files, error: event.error, at: Date.now() },
+        },
+      })
+      return
+    }
 
     const timelines = { ...this.state.timelines }
     const streaming = { ...this.state.streaming }

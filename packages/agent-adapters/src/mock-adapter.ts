@@ -1,7 +1,35 @@
-import type { AgentSession } from "@openremote/protocol"
+import type { AgentSession, ChangedFile, DiffSnapshot } from "@openremote/protocol"
 import { newId } from "@openremote/protocol"
 import { EventQueue } from "./event-queue.js"
 import type { HarnessAdapter, SessionEvent } from "./types.js"
+
+/** A believable 2-file change set returned by `requestDiff` unless reseeded. */
+const DEFAULT_MOCK_DIFF: ChangedFile[] = [
+  {
+    path: "src/auth.ts",
+    status: "modified",
+    patch: [
+      "--- a/src/auth.ts",
+      "+++ b/src/auth.ts",
+      "@@ -1,3 +1,4 @@",
+      " export function auth() {",
+      "-  return false",
+      "+  // TODO: real check",
+      "+  return true",
+      " }",
+      "",
+    ].join("\n"),
+    additions: 2,
+    deletions: 1,
+  },
+  {
+    path: "NOTES.md",
+    status: "added",
+    patch: ["--- /dev/null", "+++ b/NOTES.md", "@@ -0,0 +1,1 @@", "+scratch notes", ""].join("\n"),
+    additions: 1,
+    deletions: 0,
+  },
+]
 
 /**
  * A deterministic, model-free HarnessAdapter used to build and test the whole
@@ -30,6 +58,10 @@ export class MockAgentAdapter implements HarnessAdapter {
   private readonly aborters = new Map<string, AbortController>()
   private readonly pendingPermissions = new Map<string, (r: "allow" | "deny") => void>()
   private readonly stepMs: number
+
+  /** Diff returned by requestDiff(); overridable via seedDiff/seedDiffError. */
+  private diffFiles: ChangedFile[] = DEFAULT_MOCK_DIFF
+  private diffError: string | null = null
 
   constructor(opts: { stepMs?: number; seedSession?: boolean } = {}) {
     this.stepMs = opts.stepMs ?? 350
@@ -86,6 +118,22 @@ export class MockAgentAdapter implements HarnessAdapter {
 
   async abortSession(sessionId: string): Promise<void> {
     this.aborters.get(sessionId)?.abort()
+  }
+
+  /** Seed the fixed diff `requestDiff` returns (used by tests + smoke). */
+  seedDiff(files: ChangedFile[]): void {
+    this.diffFiles = files
+    this.diffError = null
+  }
+
+  /** Make the next requestDiff() reject, to exercise the host's error path. */
+  seedDiffError(message: string): void {
+    this.diffError = message
+  }
+
+  async requestDiff(_sessionId: string): Promise<DiffSnapshot> {
+    if (this.diffError) throw new Error(this.diffError)
+    return { files: this.diffFiles }
   }
 
   async respondToPermission(
