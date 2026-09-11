@@ -204,42 +204,70 @@ async function main(): Promise<void> {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ hostId: account.hostId, hostSecret: account.hostSecret, status }),
+          // Time-boxed so a slow/unreachable API never blocks startup OR keeps
+          // the loop wedged. (Previously the startup `await beat("online")` had
+          // no timeout — a hanging API blocked main() before the SIGINT handler
+          // was even registered, so Ctrl+C did nothing.)
+          signal: AbortSignal.timeout(5000),
         })
       } catch (err) {
         log(`heartbeat failed: ${(err as Error).message}`)
       }
     }
-    await beat("online")
+    // Fire-and-forget the first beat — never block startup (or signal handler
+    // registration) on the network.
+    void beat("online")
     heartbeat = setInterval(() => void beat("online"), 30_000)
   }
 
+  let shuttingDown = false
   const shutdown = async () => {
+    // Second Ctrl+C while already shutting down → exit NOW. Guards against a slow
+    // cleanup step and matches the standard CLI "press again to force" behavior.
+    if (shuttingDown) {
+      process.exit(130)
+    }
+    shuttingDown = true
     log("shutting down …")
     if (heartbeat) clearInterval(heartbeat)
+
     if (account?.hostId && account.hostSecret) {
-      // Best-effort "offline" so the UI updates promptly.
-      try {
-        await fetch(`${account.apiUrl.replace(/\/$/, "")}/api/host/heartbeat`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            hostId: account.hostId,
-            hostSecret: account.hostSecret,
-            status: "offline",
-          }),
-        })
-      } catch {
-        // ignore — we're exiting anyway
-      }
+      // Best-effort "offline" so the UI updates promptly — but TIME-BOXED. The
+      // old code awaited this fetch with no timeout, so a slow/unreachable API
+      // made Ctrl+C hang (people then reached for Ctrl+Z, which only suspends).
+      // Race the fetch against a timeout: whichever wins, we move on. (An
+      // AbortSignal alone isn't reliable against a server that accepts the
+      // connection but never responds, so we don't depend on it.)
+      const controller = new AbortController()
+      const beat = fetch(`${account.apiUrl.replace(/\/$/, "")}/api/host/heartbeat`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          hostId: account.hostId,
+          hostSecret: account.hostSecret,
+          status: "offline",
+        }),
+        signal: controller.signal,
+      }).catch(() => {})
+      await Promise.race([beat, new Promise((r) => setTimeout(r, 1200))])
+      controller.abort()
     }
+
     connection.stop()
     await adapter.stop()
     opencode?.stop()
     store.close()
     process.exit(0)
   }
-  process.on("SIGINT", shutdown)
-  process.on("SIGTERM", shutdown)
+
+  // Hard cap: no matter what cleanup does, exit within 2s of the signal so Ctrl+C
+  // is always prompt. NOT unref'd — we want this to fire and force the exit.
+  const shutdownWithCap = () => {
+    setTimeout(() => process.exit(0), 2000)
+    void shutdown()
+  }
+  process.on("SIGINT", shutdownWithCap)
+  process.on("SIGTERM", shutdownWithCap)
 }
 
 const VERSION = "0.1.0"
