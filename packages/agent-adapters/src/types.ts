@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentSession } from "@openremote/protocol"
+import type { AgentEvent, AgentSession, DiffSnapshot } from "@openremote/protocol"
 
 /** An AgentEvent tagged with the session it belongs to. */
 export type SessionEvent = {
@@ -59,6 +59,13 @@ export interface HarnessAdapter {
 
   /** Ask the runtime to stop the current run for a session. */
   abortSession(sessionId: string): Promise<void>
+
+  /**
+   * The set of files the agent has changed in this session, normalized to a
+   * runtime-agnostic shape. Implementations translate their native diff/VCS
+   * output; callers never see a runtime-specific type.
+   */
+  requestDiff(sessionId: string): Promise<DiffSnapshot>
 
   /** Answer a pending permission request. */
   respondToPermission(

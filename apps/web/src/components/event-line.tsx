@@ -47,8 +47,10 @@ export function EventLine({ event }: { event: AgentEvent }) {
       return <Meta text="Done" />
     case "agent.failed":
       return <div className="text-sm text-red-400">✗ {event.error}</div>
-    // permission.requested is rendered as an interactive card elsewhere.
+    // permission.requested is rendered as an interactive card elsewhere;
+    // diff.snapshot is rendered by <DiffView>, not as a timeline line.
     case "permission.requested":
+    case "diff.snapshot":
     case "assistant.delta":
     // run.* are lifecycle markers (session/run split); not shown as timeline
     // lines in the V0 UI. A future run-grouped view will use them.

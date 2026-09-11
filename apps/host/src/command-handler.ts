@@ -50,6 +50,25 @@ export async function handleCommand(
       return [{ kind: "sessions.snapshot", sessions }]
     }
 
+    case "diff.request": {
+      // Request/response: ask the adapter for the session's changed files and
+      // return them as one diff.snapshot event. An adapter failure (no git, bad
+      // session, …) comes back on the same event with `error` set, not as a throw
+      // — the UI needs something to render either way.
+      try {
+        if (!adapter) throw new Error("no harness available")
+        const snapshot = await adapter.requestDiff(command.sessionId)
+        return [{ kind: "event", event: { type: "diff.snapshot", files: snapshot.files } }]
+      } catch (err) {
+        return [
+          {
+            kind: "event",
+            event: { type: "diff.snapshot", files: [], error: (err as Error).message },
+          },
+        ]
+      }
+    }
+
     case "projects.list": {
       const capabilities = await manager.capabilities()
       return [{ kind: "projects.snapshot", capabilities }]

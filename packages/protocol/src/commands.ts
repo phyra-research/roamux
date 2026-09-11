@@ -36,6 +36,12 @@ export const RemoteCommandSchema = z.discriminatedUnion("type", [
     type: z.literal("sessions.list"),
   }),
   z.object({
+    // Ask the host for the set of files the agent changed in this session. The
+    // host replies with a `diff.snapshot` event on the session's channel.
+    type: z.literal("diff.request"),
+    sessionId: z.string(),
+  }),
+  z.object({
     // Ask the host to (re)send its approved projects + installed harnesses, so
     // the New Session UI can populate its pickers.
     type: z.literal("projects.list"),

@@ -90,6 +90,44 @@ describe("handleCommand", () => {
     store.close()
   })
 
+  test("diff.request returns a diff.snapshot event with the adapter's files", async () => {
+    const { manager, adapter, store } = makeManager()
+    adapter.seedDiff([
+      { path: "src/x.ts", status: "modified", patch: "@@\n-a\n+b\n", additions: 1, deletions: 1 },
+    ])
+    const replies = await handleCommand(manager, {
+      type: "diff.request",
+      sessionId: "mock-session-1",
+    })
+    expect(replies.length).toBe(1)
+    const reply = replies[0]
+    expect(reply?.kind).toBe("event")
+    if (reply?.kind === "event" && reply.event.type === "diff.snapshot") {
+      expect(reply.event.files.map((f) => f.path)).toEqual(["src/x.ts"])
+      expect(reply.event.error).toBeUndefined()
+    }
+    await adapter.stop()
+    store.close()
+  })
+
+  test("diff.request surfaces an adapter failure as diff.snapshot with error", async () => {
+    const { manager, adapter, store } = makeManager()
+    adapter.seedDiffError("git not installed")
+    const replies = await handleCommand(manager, {
+      type: "diff.request",
+      sessionId: "mock-session-1",
+    })
+    const reply = replies[0]
+    if (reply?.kind === "event" && reply.event.type === "diff.snapshot") {
+      expect(reply.event.files).toEqual([])
+      expect(reply.event.error).toBe("git not installed")
+    } else {
+      throw new Error("expected a diff.snapshot event reply")
+    }
+    await adapter.stop()
+    store.close()
+  })
+
   test("session.abort and permission.respond do not throw", async () => {
     const { manager, adapter, store } = makeManager()
     await expect(

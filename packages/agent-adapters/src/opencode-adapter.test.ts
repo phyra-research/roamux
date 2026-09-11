@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import type { ChangedFile } from "@openremote/protocol"
 import { OpenCodeAdapter } from "./opencode-adapter.js"
 import type { SessionEvent } from "./types.js"
 
@@ -172,6 +173,107 @@ describe("OpenCodeAdapter.normalize", () => {
     feed({ type: "session.idle", properties: { sessionID: "s2" } })
     const [ev] = await drain(adapter, 1)
     expect(ev?.event.type).toBe("agent.completed")
+    await adapter.stop()
+  })
+})
+
+type DiffStubs = {
+  status: () => Promise<{ data: unknown }>
+  read?: (o: { query: { path: string } }) => Promise<{ data: unknown }>
+  sessionDiff?: () => Promise<{ data: unknown }>
+}
+
+/** Wire canned working-tree/session responses into a fresh adapter's SDK client. */
+function stubOpenCode(adapter: OpenCodeAdapter, stubs: DiffStubs) {
+  const client = (
+    adapter as unknown as {
+      client: {
+        file: { status: unknown; read: unknown }
+        session: { diff: unknown }
+      }
+    }
+  ).client
+  client.file.status = stubs.status
+  client.file.read = stubs.read ?? (() => Promise.resolve({ data: undefined }))
+  client.session.diff = stubs.sessionDiff ?? (() => Promise.resolve({ data: [] }))
+}
+
+/** git is authoritative but injected so tests never shell out / depend on cwd. */
+function makeDiffAdapter(gitDiff: () => ChangedFile[] = () => []) {
+  return new OpenCodeAdapter({ baseUrl: "http://127.0.0.1:1", directory: "/tmp", gitDiff })
+}
+
+describe("OpenCodeAdapter.requestDiff", () => {
+  test("git output is authoritative — its patch wins over OpenCode for the same path", async () => {
+    const gitPatch = "diff --git a/README.md b/README.md\n@@ -1 +1 @@\n-old\n+new\n"
+    const adapter = makeDiffAdapter(() => [
+      { path: "README.md", status: "modified", patch: gitPatch, additions: 1, deletions: 1 },
+    ])
+    stubOpenCode(adapter, {
+      // OpenCode disagrees (and on 1.18.x usually just returns nothing).
+      status: () =>
+        Promise.resolve({
+          data: [{ path: "README.md", status: "modified", added: 9, removed: 9 }],
+        }),
+      read: () => Promise.resolve({ data: { type: "text", content: "x", diff: "WRONG" } }),
+    })
+    const snap = await adapter.requestDiff("s1")
+    expect(snap.files).toEqual([
+      { path: "README.md", status: "modified", patch: gitPatch, additions: 1, deletions: 1 },
+    ])
+    await adapter.stop()
+  })
+
+  test("OpenCode fills in paths git doesn't report", async () => {
+    const adapter = makeDiffAdapter(() => [
+      { path: "a.ts", status: "modified", patch: "p", additions: 1, deletions: 0 },
+    ])
+    stubOpenCode(adapter, {
+      status: () =>
+        Promise.resolve({ data: [{ path: "b.ts", status: "added", added: 2, removed: 0 }] }),
+      read: () => Promise.resolve({ data: { type: "text", content: "hi\nthere\n" } }),
+    })
+    const snap = await adapter.requestDiff("s1")
+    expect(snap.files.map((f) => f.path)).toEqual(["a.ts", "b.ts"])
+    expect(snap.files[1]?.patch).toBe(
+      ["--- /dev/null", "+++ b/b.ts", "@@ -0,0 +1,2 @@", "+hi", "+there", ""].join("\n"),
+    )
+    await adapter.stop()
+  })
+
+  test("regression: OpenCode returns nothing, git sees the change → file still listed", async () => {
+    const adapter = makeDiffAdapter(() => [
+      {
+        path: "README.md",
+        status: "modified",
+        patch: "diff --git a/README.md b/README.md\n@@ -1 +1 @@\n-x\n+y\n",
+        additions: 1,
+        deletions: 1,
+      },
+    ])
+    stubOpenCode(adapter, { status: () => Promise.resolve({ data: [] }) })
+    const snap = await adapter.requestDiff("s1")
+    expect(snap.files.map((f) => f.path)).toEqual(["README.md"])
+    await adapter.stop()
+  })
+
+  test("git and OpenCode both empty → empty file list", async () => {
+    const adapter = makeDiffAdapter(() => [])
+    stubOpenCode(adapter, {
+      status: () => Promise.resolve({ data: [] }),
+      sessionDiff: () => Promise.reject(new Error("should not be called")),
+    })
+    expect(await adapter.requestDiff("s1")).toEqual({ files: [] })
+    await adapter.stop()
+  })
+
+  test("an OpenCode failure never breaks the git-backed result", async () => {
+    const adapter = makeDiffAdapter(() => [
+      { path: "x", status: "modified", patch: "p", additions: 0, deletions: 0 },
+    ])
+    stubOpenCode(adapter, { status: () => Promise.reject(new Error("opencode down")) })
+    const snap = await adapter.requestDiff("s1")
+    expect(snap.files.map((f) => f.path)).toEqual(["x"])
     await adapter.stop()
   })
 })

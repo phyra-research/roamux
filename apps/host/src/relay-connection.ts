@@ -129,7 +129,12 @@ export class RelayConnection {
 
     try {
       const replies = await handleCommand(this.opts.manager, msg.command)
-      for (const reply of replies) this.send(reply)
+      // Session-scoped commands (e.g. diff.request) reply with an `event` message;
+      // the client routes events by the envelope's sessionId, so carry it over.
+      const sessionId = "sessionId" in msg.command ? msg.command.sessionId : undefined
+      for (const reply of replies) {
+        this.send(reply, reply.kind === "event" && sessionId ? { sessionId } : {})
+      }
     } catch (err) {
       this.log(`command ${msg.command.type} failed: ${(err as Error).message}`)
     }

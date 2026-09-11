@@ -61,6 +61,66 @@ describe("envelope round-trip", () => {
     }
   })
 
+  test("diff.request command round-trips", () => {
+    const env = createEnvelope(
+      { kind: "command" as const, command: { type: "diff.request" as const, sessionId: "s1" } },
+      { deviceId: "dev-1", sessionId: "s1" },
+    )
+    const parsed = parseWith(ClientToRelayEnvelopeSchema, serialize(env))
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok && parsed.value.message.kind === "command") {
+      expect(parsed.value.message.command.type).toBe("diff.request")
+    }
+  })
+
+  test("diff.snapshot event round-trips (with and without error)", () => {
+    const withFiles = createEnvelope(
+      {
+        kind: "event" as const,
+        event: {
+          type: "diff.snapshot" as const,
+          files: [
+            {
+              path: "src/a.ts",
+              status: "modified" as const,
+              patch: "--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-old\n+new\n",
+              additions: 1,
+              deletions: 1,
+            },
+          ],
+        },
+      },
+      { deviceId: "dev-1", sessionId: "s1" },
+    )
+    const p1 = parseWith(HostToRelayEnvelopeSchema, serialize(withFiles))
+    expect(p1.ok).toBe(true)
+    if (
+      p1.ok &&
+      p1.value.message.kind === "event" &&
+      p1.value.message.event.type === "diff.snapshot"
+    ) {
+      expect(p1.value.message.event.files[0]?.path).toBe("src/a.ts")
+    }
+
+    const withError = createEnvelope(
+      {
+        kind: "event" as const,
+        event: { type: "diff.snapshot" as const, files: [], error: "git not found" },
+      },
+      { deviceId: "dev-1", sessionId: "s1" },
+    )
+    const p2 = parseWith(HostToRelayEnvelopeSchema, serialize(withError))
+    expect(p2.ok).toBe(true)
+    if (
+      p2.ok &&
+      p2.value.message.kind === "event" &&
+      p2.value.message.event.type === "diff.snapshot"
+    ) {
+      expect(p2.value.message.event.error).toBe("git not found")
+      expect(p2.value.message.event.files).toEqual([])
+    }
+  })
+
   test("event envelope carries a sequence number", () => {
     const env = createEnvelope(
       { kind: "event" as const, event: { type: "assistant.delta" as const, text: "chunk" } },
@@ -128,6 +188,11 @@ describe("agent events", () => {
       { type: "tool.completed", tool: "bash" },
       { type: "terminal.output", text: "out" },
       { type: "file.changed", path: "src/a.ts" },
+      {
+        type: "diff.snapshot",
+        files: [{ path: "a.ts", status: "added", patch: "+x\n", additions: 1, deletions: 0 }],
+      },
+      { type: "diff.snapshot", files: [], error: "boom" },
       { type: "permission.requested", permissionId: "p", description: "run rm" },
       { type: "permission.resolved", permissionId: "p", response: "allow" },
       { type: "agent.waiting" },
@@ -137,6 +202,21 @@ describe("agent events", () => {
     for (const s of samples) {
       expect(AgentEventSchema.safeParse(s).success).toBe(true)
     }
+  })
+
+  test("diff.snapshot rejects a bad status and negative counts", () => {
+    expect(
+      AgentEventSchema.safeParse({
+        type: "diff.snapshot",
+        files: [{ path: "a", status: "renamed", patch: "", additions: 0, deletions: 0 }],
+      }).success,
+    ).toBe(false)
+    expect(
+      AgentEventSchema.safeParse({
+        type: "diff.snapshot",
+        files: [{ path: "a", status: "added", patch: "", additions: -1, deletions: 0 }],
+      }).success,
+    ).toBe(false)
   })
 
   test("permission response must be allow|deny", () => {

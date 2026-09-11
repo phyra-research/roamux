@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { ChangedFileSchema } from "./diff.js"
 
 /**
  * AgentEvent — the *normalized* view of anything a coding-agent runtime does.
@@ -39,6 +40,13 @@ export const AgentEventSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("file.changed"),
     path: z.string(),
+  }),
+  z.object({
+    // The set of files changed in a session, sent in response to `diff.request`.
+    // `error` is set (and `files` empty) when the harness could not produce a diff.
+    type: z.literal("diff.snapshot"),
+    files: z.array(ChangedFileSchema),
+    error: z.string().optional(),
   }),
   z.object({
     type: z.literal("permission.requested"),

@@ -87,6 +87,26 @@ describe("MockAgentAdapter", () => {
     await a.stop()
   })
 
+  test("requestDiff returns a fixed 2-file snapshot by default", async () => {
+    const a = new MockAgentAdapter({ seedSession: true })
+    const snap = await a.requestDiff("mock-session-1")
+    expect(snap.files.map((f) => [f.path, f.status])).toEqual([
+      ["src/auth.ts", "modified"],
+      ["NOTES.md", "added"],
+    ])
+    await a.stop()
+  })
+
+  test("seedDiff overrides the snapshot; seedDiffError makes requestDiff reject", async () => {
+    const a = new MockAgentAdapter({ seedSession: true })
+    a.seedDiff([{ path: "x.ts", status: "deleted", patch: "-gone\n", additions: 0, deletions: 1 }])
+    expect((await a.requestDiff("s")).files[0]?.path).toBe("x.ts")
+
+    a.seedDiffError("git not installed")
+    await expect(a.requestDiff("s")).rejects.toThrow(/git not installed/)
+    await a.stop()
+  })
+
   test("abort stops the run", async () => {
     const a = new MockAgentAdapter({ seedSession: true, stepMs: 60 })
     const collected = collectUntil(a, (t) => t.includes("agent.completed"))
