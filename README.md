@@ -46,7 +46,7 @@ does not implement its own agent — it drives yours through a swappable
 
 ```sh
 # 1. Install the host CLI
-curl -fsSL https://open-remote-sigma.vercel.app/install.sh | sh
+curl -fsSL https://remote.phyra.ai/install.sh | sh
 
 # 2. Link it to your account (opens a code — approve it in your browser)
 openremote login
@@ -56,7 +56,7 @@ cd ~/your/project
 openremote host
 ```
 
-Then open **[the web app](https://open-remote-sigma.vercel.app)** on your phone
+Then open **[the web app](https://remote.phyra.ai)** on your phone
 or browser, sign in, pick your machine → **New Session** → choose the project +
 agent + a task → **Start**, and watch it run.
 
