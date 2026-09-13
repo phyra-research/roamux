@@ -2,14 +2,14 @@
 import { createHash } from "node:crypto"
 import { basename } from "node:path"
 import type { HarnessAdapter } from "@openremote/agent-adapters"
-import { MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
+import { ClaudeCodeAdapter, MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
 import { AblyTransport, type HostInfo, controlChannel, pairingChannel } from "@openremote/protocol"
 import { nodeRealtimeCtor } from "@openremote/protocol/ably-node"
 import { type HostConfig, loadConfig } from "./config.js"
 import { HostSessionManager } from "./host-session-manager.js"
 import { defaultHostName, runLogin } from "./login.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
-import { preflightOpenCode } from "./preflight.js"
+import { preflightClaudeCode, preflightOpenCode } from "./preflight.js"
 import { RelayConnection } from "./relay-connection.js"
 import { installService, printServiceStatus, uninstallService } from "./service/index.js"
 import { HostStore } from "./store.js"
@@ -76,6 +76,11 @@ async function buildAdapter(
     return { adapter: new MockAgentAdapter() }
   }
 
+  if (config.adapter === "claude-code") {
+    // No server to spawn — Claude Code print mode is one subprocess per prompt.
+    return { adapter: new ClaudeCodeAdapter({ cwd: config.defaultProjectPath }) }
+  }
+
   // opencode: use the given URL, or spawn a local server bound to localhost.
   let baseUrl = config.opencodeUrl
   let opencode: SpawnedOpenCode | undefined
@@ -120,17 +125,19 @@ function printBanner(config: HostConfig, info: HostInfo, pairingToken: string): 
 async function main(): Promise<void> {
   const config = loadConfig()
 
-  // Preflight: with the OpenCode adapter, make sure OpenCode is installed and a
-  // model is configured — otherwise the agent silently returns nothing. Print
-  // actionable guidance and exit cleanly instead of crashing later.
-  if (config.adapter === "opencode" && !config.opencodeUrl) {
-    const pre = await preflightOpenCode()
-    if (!pre.ok) {
-      console.log("")
-      for (const line of pre.messages) console.log(`  ${line}`)
-      console.log("")
-      process.exit(1)
-    }
+  // Preflight: catch the things that silently break a run (agent not installed,
+  // not authed / no model) and print actionable guidance instead of crashing.
+  const preflight =
+    config.adapter === "opencode" && !config.opencodeUrl
+      ? await preflightOpenCode()
+      : config.adapter === "claude-code"
+        ? await preflightClaudeCode()
+        : null
+  if (preflight && !preflight.ok) {
+    console.log("")
+    for (const line of preflight.messages) console.log(`  ${line}`)
+    console.log("")
+    process.exit(1)
   }
 
   const store = new HostStore(config.dbPath)

@@ -1,8 +1,8 @@
 /**
- * Preflight checks for `openremote host` with the OpenCode adapter. Catches the
- * two things that silently break the experience — OpenCode not installed, or no
- * model configured — and prints actionable guidance instead of a cryptic spawn
- * error or empty agent replies.
+ * Preflight checks for `openremote host`. Catches the two things that silently
+ * break the experience for a subprocess-backed agent — the CLI not installed, or
+ * not authenticated — and prints actionable guidance instead of a cryptic spawn
+ * error or empty agent replies. One function per supported adapter.
  */
 
 export type PreflightResult = { ok: boolean; messages: string[] }
@@ -62,6 +62,58 @@ export async function preflightOpenCode(): Promise<PreflightResult> {
       "",
       "    opencode auth login        # e.g. Anthropic — paste an API key",
       "    (or a free local model via Ollama — see opencode.ai/docs)",
+      "",
+      "  Then re-run `openremote host`.",
+    )
+    return { ok: false, messages }
+  }
+
+  return { ok: true, messages }
+}
+
+/** Does `claude auth status` report a logged-in account? */
+async function claudeIsAuthed(): Promise<boolean> {
+  try {
+    const proc = Bun.spawn(["claude", "auth", "status"], { stdout: "pipe", stderr: "pipe" })
+    await proc.exited
+    if (proc.exitCode !== 0) return false
+    const out = await new Response(proc.stdout).text()
+    return /"loggedIn"\s*:\s*true/.test(out)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Run Claude Code preflight. Same shape as `preflightOpenCode` — ok=false with
+ * guidance when the CLI is missing or not signed in.
+ */
+export async function preflightClaudeCode(): Promise<PreflightResult> {
+  const messages: string[] = []
+
+  if (!(await commandExists("claude"))) {
+    messages.push(
+      "Claude Code is not installed — that's the agent OpenRemote would run.",
+      "",
+      "  Install it:",
+      "    curl -fsSL https://claude.ai/install.sh | bash",
+      "    (see https://docs.claude.com/en/docs/claude-code for other options)",
+      "",
+      "  Then sign in:",
+      "    claude          # run once, complete the login prompt",
+      "",
+      "  Re-run `openremote host` once Claude Code is set up.",
+    )
+    return { ok: false, messages }
+  }
+
+  if (!(await claudeIsAuthed())) {
+    messages.push(
+      "Claude Code is installed, but not signed in — the agent would fail every",
+      "run. Sign in:",
+      "",
+      "    claude          # run once, complete the login prompt",
+      "    (or set ANTHROPIC_API_KEY in this shell)",
       "",
       "  Then re-run `openremote host`.",
     )
