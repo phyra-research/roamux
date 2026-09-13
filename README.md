@@ -40,6 +40,22 @@ Supported agents (bring your own): **[OpenCode](https://opencode.ai)**,
 does not implement its own agent — it drives yours through a swappable
 `HarnessAdapter`.
 
+## Prerequisites
+
+roamux **drives an agent you already run locally** — it does not ship or proxy a
+model. So before you start, install and sign in to **one** of the supported
+agent CLIs on the machine you want to control (this is where your model access
+and auth live — nothing leaves the box):
+
+| Agent | Install | Sign in |
+| --- | --- | --- |
+| **[OpenCode](https://opencode.ai)** | `curl -fsSL https://opencode.ai/install \| bash` | `opencode auth login` |
+| **[Claude Code](https://claude.com/claude-code)** | `curl -fsSL https://claude.ai/install.sh \| bash` | `claude` (run once, complete the login) |
+| **Codex** | `npm install -g @openai/codex` | `codex login` |
+
+You only need one. If the agent isn't installed or signed in, `roamux host`
+refuses to start and prints the exact commands to fix it.
+
 ## Quick start
 
 **On the machine you want to control** (macOS or Linux):
@@ -51,22 +67,25 @@ curl -fsSL https://remote.phyra.ai/install.sh | sh
 # 2. Link it to your account (opens a code — approve it in your browser)
 roamux login
 
-# 3. Start it in the project you want the agent to work on
+# 3. Start it in the project you want the agent to work on, picking the agent.
+#    AGENT_ADAPTER defaults to `opencode` — set it for Claude Code or Codex.
 cd ~/your/project
-roamux host
+AGENT_ADAPTER=claude-code roamux host      # or opencode | codex
 ```
 
 Then open **[the web app](https://remote.phyra.ai)** on your phone
 or browser, sign in, pick your machine → **New Session** → choose the project +
 agent + a task → **Start**, and watch it run.
 
+> A host serves **one** agent — whichever `AGENT_ADAPTER` you launched it with.
+> To offer several, run one host per agent.
+
+> **File edits:** the agent auto-accepts file edits so it can actually do the
+> work (it still won't run destructive shell commands unattended). Point it at a
+> project you're comfortable letting it change — a git repo is ideal.
+
 > **Keep it running in the background** (survives closing the terminal / logout):
 > `roamux service install`
-
-> You need one of the supported agent CLIs installed and configured on the host
-> ([OpenCode](https://opencode.ai) `opencode auth login`, or
-> [Claude Code](https://claude.com/claude-code), or Codex). The host tells you
-> exactly what's missing on startup.
 
 ### CLI
 
@@ -78,8 +97,9 @@ agent + a task → **Start**, and watch it run.
 | `roamux service status` / `uninstall` | Manage the background service |
 | `roamux help` · `roamux version` | Usage / version |
 
-Pick the agent with `AGENT_ADAPTER=opencode|claude-code|codex` and the project
-with `DEFAULT_PROJECT_PATH=<dir>`.
+Configure via env: `AGENT_ADAPTER=opencode|claude-code|codex` picks the agent
+(default `opencode`), `DEFAULT_PROJECT_PATH=<dir>` sets the project (default: the
+current directory), `HOST_NAME=<name>` labels the machine.
 
 ## How it works
 
