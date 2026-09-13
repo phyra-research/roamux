@@ -1,4 +1,4 @@
-# OpenRemote — Beta / V1 Architecture (design of record)
+# roamux — Beta / V1 Architecture (design of record)
 
 This is the **target** architecture we are building toward. It is the design of
 record derived from the *Design Notes* and the *Beta TDD (v0.2)*, mapped onto the
@@ -102,7 +102,7 @@ side, plus a lifecycle owner. This is the most important section.
 ```mermaid
 flowchart LR
   C["Client"] <-->|Envelope| TR["Transport"]
-  TR <-->|Envelope| PROTO["OpenRemote protocol<br/>(Zod)"]
+  TR <-->|Envelope| PROTO["roamux protocol<br/>(Zod)"]
   PROTO <--> HA["HarnessAdapter"]
   HA <--> RT["Agent runtime"]
   HSM["HostSessionManager<br/>owns process lifecycle"] --- PROTO
@@ -112,14 +112,14 @@ flowchart LR
   class TR,HA,HSM seam
 ```
 
-**The rule that ties them together:** OpenRemote owns the protocol, the session
+**The rule that ties them together:** roamux owns the protocol, the session
 lifecycle, and harness selection. A transport only carries messages; a harness
 only runs the agent. **No transport-specific or harness-specific object ever
 crosses the wire protocol.**
 
 | Seam | Status | Responsibility | Implementations |
 |---|---|---|---|
-| **`Transport`** | Beta (new) | Move Envelopes. Connect/publish/subscribe/disconnect. | `LocalWebSocketTransport` (V0 relay socket, extracted) · `AblyTransport` (prod) · `OpenRemoteTransport` (future) |
+| **`Transport`** | Beta (new) | Move Envelopes. Connect/publish/subscribe/disconnect. | `LocalWebSocketTransport` (V0 relay socket, extracted) · `AblyTransport` (prod) · `RoamuxTransport` (future) |
 | **`HarnessAdapter`** | V0 `AgentAdapter`, renamed | Drive one runtime; normalize its events to the protocol. | `OpenCodeAdapter` (works today) · `ClaudeCodeAdapter` (spike first) · `CodexAdapter` (later) · `MockAgentAdapter` (tests) |
 | **`HostSessionManager`** | Beta (new) | Start/track/resume/terminate daemon-owned sessions; map `projectId`→local path; idempotent command handling. | one per host daemon |
 
@@ -168,7 +168,7 @@ flowchart TD
 
 | Term | Meaning |
 |---|---|
-| **Host** | A computer running the OpenRemote host daemon. One user → **many** hosts (no protocol-level limit; quotas are an app-layer entitlement). |
+| **Host** | A computer running the roamux host daemon. One user → **many** hosts (no protocol-level limit; quotas are an app-layer entitlement). |
 | **Project** | A host-local **approved** working directory. Clients reference `projectId`; the daemon maps it to the absolute path. Clients never send paths. |
 | **Harness** | The local agent runtime for a session (Claude Code / OpenCode / Codex). UI says "Agent". |
 | **Agent session** | Long-lived, daemon-owned, bound to one host + one project + one harness. |
@@ -225,7 +225,7 @@ openremote:user:{userId}:host:{hostId}:session:{sessionId}  # prompts, runs, too
   cache** so a redelivered command never repeats a destructive action.
 - **Permission responses are idempotent** — once terminal, repeated responses
   return the existing result.
-- Keep `sequence` in the OpenRemote event model even if Ably serials suffice —
+- Keep `sequence` in the roamux event model even if Ably serials suffice —
   it keeps the transport replaceable.
 
 ---
@@ -259,7 +259,7 @@ can join without restarting the harness (§9 late-join).
 ```mermaid
 sequenceDiagram
   participant C as Client (any device)
-  participant API as OpenRemote API
+  participant API as roamux API
   participant TR as Transport (Ably)
   participant D as Host daemon
   participant HSM as HostSessionManager
@@ -331,7 +331,7 @@ state; the cloud session is authoritative for delivery/history.
 
 1. **User auth:** normal app auth for the web product; **GitHub** is the natural
    beta default (replaceable provider).
-2. **Host authorization:** `openremote login` runs a **device authorization
+2. **Host authorization:** `roamux login` runs a **device authorization
    flow** → API creates a `HostRecord` and returns a renewable host credential →
    daemon exchanges it for **short-lived, scoped** Ably tokens → user can
    **revoke** a host from the web UI.
@@ -416,7 +416,7 @@ payload (future E2E):       encrypted command/event body
 | `AgentAdapter` + `OpenCodeAdapter` + `MockAgentAdapter` | `HarnessAdapter` (+ `ClaudeCodeAdapter`, `CodexAdapter`) | Rename/broaden interface; add `isInstalled`/`resume`/per-session `events` |
 | `Bun.serve` WS relay | `Transport` iface + `LocalWebSocketTransport` + `AblyTransport` | Extract interface around existing WS; add Ably behind it |
 | Host spawns/owns one OpenCode | `HostSessionManager` owning N sessions × N harnesses | Generalize lifecycle ownership |
-| Shared bearer token pairing | GitHub login + `openremote login` device-auth + scoped Ably JWTs | Add API + Postgres + auth |
+| Shared bearer token pairing | GitHub login + `roamux login` device-auth + scoped Ably JWTs | Add API + Postgres + auth |
 | Envelope `{deviceId, sessionId, sequence}` | `{userId, hostId, sessionId, runId, sequence}` | Add `hostId`/`runId`; keep `sequence` |
 | Per-session sequence in SQLite | Ably serials + `sequence` + idempotency cache | Add processed-message cache |
 | "phone remote" framing | Generic clients + multi-host | Framing + data-model change |
@@ -473,7 +473,7 @@ These are the honest execution risks — mostly **not** architectural:
 ```mermaid
 flowchart LR
   P0["Phase 0<br/>Foundations refactor<br/>Transport iface · HarnessAdapter rename · hostId/runId · session/run split · idempotency"] --> P1["Phase 1<br/>AblyTransport<br/>phone-on-cellular ↔ home-host"]
-  P1 --> P2["Phase 2<br/>Accounts + multi-host<br/>GitHub auth · openremote login · Postgres · scoped JWTs · host list"]
+  P1 --> P2["Phase 2<br/>Accounts + multi-host<br/>GitHub auth · roamux login · Postgres · scoped JWTs · host list"]
   P2 --> P3["Phase 3<br/>Agent beta<br/>HostSessionManager · session.create · OpenCode owns sessions · Claude Code spike ∥"]
   P3 --> P4["Phase 4<br/>Polish<br/>PWA · push-on-permission · sleep-prevention · diff viewer · revoke UI"]
 ```
@@ -521,9 +521,9 @@ Each phase ends at something demoable, and the V0 demo stays green through Phase
   existing Claude Code auth? *(R1 spike answers this.)*
 - Persist full agent conversation content in Ably history, or minimize to
   structured control/session events? What retention window; what must outlive it?
-- How are approved projects registered — `openremote project add .`, first-run,
+- How are approved projects registered — `roamux project add .`, first-run,
   or a local picker? (Clients reference `projectId`, never paths.)
-- Which actions need **OpenRemote-level** approval on top of each harness's own
+- Which actions need **roamux-level** approval on top of each harness's own
   permission system?
 - Exact per-harness resume contract after daemon crash / harness exit / reboot.
 - What host limit (if any) should the beta UI show, given the architecture

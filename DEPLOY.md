@@ -1,6 +1,6 @@
-# Deploying OpenRemote
+# Deploying roamux
 
-OpenRemote is **two deployables**:
+roamux is **two deployables**:
 
 - **Web + API** (`apps/web`) → **Vercel** (the internet-facing control surface).
 - **Host daemon** (`apps/host`) → runs on **the user's own machine**, never deployed.

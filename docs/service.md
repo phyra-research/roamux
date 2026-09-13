@@ -1,21 +1,21 @@
 # Running the host as a background service
 
-`openremote host` runs in the foreground and dies when the terminal closes. To
+`roamux host` runs in the foreground and dies when the terminal closes. To
 keep a machine online across terminal-close, logout, and reboot, install the
 host as a **user-level** background service:
 
 ```sh
-openremote service install     # macOS: launchd agent · Linux: systemd --user unit
-openremote service status      # is it installed / running?
-openremote service uninstall   # stop and remove it
+roamux service install     # macOS: launchd agent · Linux: systemd --user unit
+roamux service status      # is it installed / running?
+roamux service uninstall   # stop and remove it
 ```
 
 `install` reads `HOST_NAME`, `TRANSPORT`, `AGENT_ADAPTER`, `HOST_DB_PATH`, and
 `OPENCODE_URL` from the shell you run it in and bakes them into the unit file.
-`ABLY_API_KEY` is a secret, so it is written to `~/.openremote-live/service.env`
+`ABLY_API_KEY` is a secret, so it is written to `~/.roamux-live/service.env`
 (mode `0600`) and referenced from there — never inlined into the unit
-(`~/Library/LaunchAgents/ai.phyra.openremote.plist` on macOS,
-`~/.config/systemd/user/openremote.service` on Linux). Logs stream to
-`~/.openremote-live/logs/host.out.log` and `host.err.log`
-(`journalctl --user -u openremote` also works on Linux). Windows is not
-supported yet — run `openremote host` in a terminal there.
+(`~/Library/LaunchAgents/ai.phyra.roamux.plist` on macOS,
+`~/.config/systemd/user/roamux.service` on Linux). Logs stream to
+`~/.roamux-live/logs/host.out.log` and `host.err.log`
+(`journalctl --user -u roamux` also works on Linux). Windows is not
+supported yet — run `roamux host` in a terminal there.

@@ -1,4 +1,4 @@
-# Contributing to OpenRemote
+# Contributing to roamux
 
 Welcome! This is the **local development guide** for human contributors. For the
 architecture and the rules every contributor (human or AI) must follow, read
@@ -103,7 +103,7 @@ GitHub sign-in. Hit the API directly too: `GET /api/health`, `GET /api/hosts`,
 > [`DEPLOY.md`](DEPLOY.md).
 
 To keep a host online across terminal-close / logout / reboot, install it as a
-background service: `openremote service install` (see [`docs/service.md`](docs/service.md)).
+background service: `roamux service install` (see [`docs/service.md`](docs/service.md)).
 
 ## 4. Tests
 
@@ -134,7 +134,7 @@ deploy gate). A change isn't done until:
 ## 6. Repo map (where things live)
 
 ```
-apps/host    the daemon + `openremote` CLI (login/host). Runs on the user's machine.
+apps/host    the daemon + `roamux` CLI (login/host). Runs on the user's machine.
 apps/relay   local-dev WebSocket router. NOT used in prod (Ably replaces it).
 apps/web     Next.js UI + API (app/api/*) + Supabase auth. Deploys to Vercel.
 packages/protocol        Zod envelopes, commands/events, Transport (WS + Ably), channels.

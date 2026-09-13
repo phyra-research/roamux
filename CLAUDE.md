@@ -1,4 +1,4 @@
-# CLAUDE.md — Working agreement for OpenRemote
+# CLAUDE.md — Working agreement for roamux
 
 This file is the contract for **every** contributor to this repo, human or AI
 coding agent (Claude Code, OpenCode, Cursor, Aider, …). Read it before you
@@ -8,7 +8,7 @@ touch code. If you are an agent, treat this as a hard constraint, not advice.
 > the clone → install → run → test guide. This file is the *rules*; that one is
 > the *how-to-run*.
 
-> **Status (keep this current):** OpenRemote is **deployed and live** — a
+> **Status (keep this current):** roamux is **deployed and live** — a
 > multi-host beta at `https://remote.phyra.ai`. Phases P0–P3 have
 > shipped (foundations, Ably transport, accounts+multi-host, agent beta) plus a
 > downloadable CLI. Remaining work is tracked as GitHub issues **#44–#55**
@@ -16,7 +16,7 @@ touch code. If you are an agent, treat this as a hard constraint, not advice.
 
 ---
 
-## 1. What OpenRemote is
+## 1. What roamux is
 
 A **remote control plane for AI coding agents that run on machines the user
 owns.** Your machine stays the execution host — the agent, repo, shell,
@@ -44,7 +44,7 @@ Three seams carry the whole design. Everything else may be small, dumb, and
 replaceable; these are not.
 
 ```
-Client ⇔ Transport ⇔ OpenRemote protocol ⇔ HarnessAdapter ⇔ Agent runtime
+Client ⇔ Transport ⇔ roamux protocol ⇔ HarnessAdapter ⇔ Agent runtime
           (WS | Ably)   (Zod envelopes)     (OpenCode…)
                              ⇕
                      HostSessionManager   (owns session lifecycle)
@@ -110,7 +110,7 @@ only by environment variables (never hardcode URLs/keys).
 | Transport | relay WebSocket (`apps/relay`) | **Ably** (no relay) |
 | DB / Auth | Docker Postgres / local Supabase | **Supabase Cloud** |
 | Web + API | `bun run dev` | **Vercel** (`apps/web`) |
-| Host | `bun run apps/host/src/index.ts` | installed `openremote` binary |
+| Host | `bun run apps/host/src/index.ts` | installed `roamux` binary |
 
 ### Run it locally (quick reference — full guide in [`CONTRIBUTING.md`](CONTRIBUTING.md))
 
@@ -146,7 +146,7 @@ Level C works because with Supabase env unset, the API treats you as the fixed
 
 ```
 apps/
-  host/    the daemon + `openremote` CLI (login / host / help). Runs on the user's
+  host/    the daemon + `roamux` CLI (login / host / help). Runs on the user's
            machine, dials out, owns sessions, heartbeats status. Compiles to a binary.
   relay/   local-dev WebSocket router (Bun.serve). NOT used in prod (Ably replaces it).
   web/     Next.js — mobile-first control UI + the API (app/api/*: hosts, device-auth,
@@ -236,7 +236,7 @@ cd apps/web && bun run build   # the Vercel deploy gate
 - Assume the live app (`remote.phyra.ai`), Supabase Cloud, and Ably
   are **production**. Don't run migrations, wipe data, rotate keys, or redeploy
   unless the human explicitly asks.
-- `.env` and `apps/host/.openremote*` / `.openremote-live/` are local/host state —
+- `.env` and `apps/host/.roamux*` / `.roamux-live/` are local/host state —
   never commit them.
 
 See also `AGENTS.md` (a symlink of this file) so non-Claude agents pick up the
