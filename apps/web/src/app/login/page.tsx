@@ -37,6 +37,14 @@ function LoginInner() {
       <div className="w-full max-w-sm space-y-6 text-center">
         <div>
           <h1 className="text-lg font-semibold text-neutral-100">roamux</h1>
+          <a
+            href="https://phyra.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-0.5 inline-block text-xs text-neutral-500 transition-colors hover:text-neutral-300"
+          >
+            by Phyra Research
+          </a>
           <p className="mt-1 text-sm text-neutral-500">Control your agents from anywhere.</p>
         </div>
 
