@@ -20,9 +20,19 @@ export function AppHeader({ back }: { back?: { href: string; label: string } }) 
               ←
             </Link>
           ) : null}
-          <Link href="/" className="text-sm font-semibold tracking-wide text-neutral-100">
-            roamux
-          </Link>
+          <div className="flex flex-col leading-none">
+            <Link href="/" className="text-sm font-semibold tracking-wide text-neutral-100">
+              roamux
+            </Link>
+            <a
+              href="https://phyra.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-0.5 text-[10px] text-neutral-500 transition-colors hover:text-neutral-300"
+            >
+              by Phyra Research
+            </a>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <StatusPill status={state.status} />
