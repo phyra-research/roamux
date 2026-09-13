@@ -74,7 +74,7 @@ export default function HostPage() {
         {host && host.status !== "online" && (
           <div className="mb-4 rounded-xl border border-dashed border-ink-line px-4 py-4 text-sm text-neutral-500">
             This machine is offline. Start it with{" "}
-            <code className="text-neutral-400">openremote host</code> to create or run sessions.
+            <code className="text-neutral-400">roamux host</code> to create or run sessions.
           </div>
         )}
 

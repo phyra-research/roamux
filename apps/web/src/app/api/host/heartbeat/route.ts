@@ -5,7 +5,7 @@ import { badRequest, ok, unauthorized } from "../../../../lib/api/respond"
 
 /**
  * POST /api/host/heartbeat — the daemon reports it's online. Authenticated by
- * the host credential (hostId + secret) it got from `openremote login`, NOT a
+ * the host credential (hostId + secret) it got from `roamux login`, NOT a
  * user session — the host has no browser. Updates hosts.status so the account
  * machine list shows the green dot.
  */

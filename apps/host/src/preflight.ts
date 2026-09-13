@@ -1,5 +1,5 @@
 /**
- * Preflight checks for `openremote host`. Catches the things that silently break
+ * Preflight checks for `roamux host`. Catches the things that silently break
  * the experience — the agent CLI not installed, or not usable (no model / not
  * signed in) — and prints actionable guidance instead of a cryptic spawn error
  * or empty agent replies. One function per supported adapter.
@@ -40,7 +40,7 @@ export async function preflightOpenCode(): Promise<PreflightResult> {
 
   if (!(await commandExists("opencode"))) {
     messages.push(
-      "OpenCode is not installed — that's the agent OpenRemote runs.",
+      "OpenCode is not installed — that's the agent roamux runs.",
       "",
       "  Install it:",
       "    curl -fsSL https://opencode.ai/install | bash",
@@ -50,7 +50,7 @@ export async function preflightOpenCode(): Promise<PreflightResult> {
       "    opencode auth login        # e.g. Anthropic — paste an API key",
       "    (or point it at a free local model via Ollama — see opencode.ai/docs)",
       "",
-      "  Re-run `openremote host` once OpenCode is set up.",
+      "  Re-run `roamux host` once OpenCode is set up.",
     )
     return { ok: false, messages }
   }
@@ -63,7 +63,7 @@ export async function preflightOpenCode(): Promise<PreflightResult> {
       "    opencode auth login        # e.g. Anthropic — paste an API key",
       "    (or a free local model via Ollama — see opencode.ai/docs)",
       "",
-      "  Then re-run `openremote host`.",
+      "  Then re-run `roamux host`.",
     )
     return { ok: false, messages }
   }
@@ -114,7 +114,7 @@ export async function preflightCodex(): Promise<PreflightResult> {
 
   if (!(await commandExists("codex"))) {
     messages.push(
-      "Codex is not installed — that's the agent OpenRemote would run.",
+      "Codex is not installed — that's the agent roamux would run.",
       "",
       "  Install it:",
       "    npm install -g @openai/codex",
@@ -123,7 +123,7 @@ export async function preflightCodex(): Promise<PreflightResult> {
       "  Then sign in:",
       "    codex login",
       "",
-      "  Re-run `openremote host` once Codex is set up.",
+      "  Re-run `roamux host` once Codex is set up.",
     )
     return { ok: false, messages }
   }
@@ -135,7 +135,7 @@ export async function preflightCodex(): Promise<PreflightResult> {
       "",
       "    codex login",
       "",
-      "  Then re-run `openremote host`.",
+      "  Then re-run `roamux host`.",
     )
     return { ok: false, messages }
   }
@@ -152,7 +152,7 @@ export async function preflightClaudeCode(): Promise<PreflightResult> {
 
   if (!(await commandExists("claude"))) {
     messages.push(
-      "Claude Code is not installed — that's the agent OpenRemote would run.",
+      "Claude Code is not installed — that's the agent roamux would run.",
       "",
       "  Install it:",
       "    curl -fsSL https://claude.ai/install.sh | bash",
@@ -161,7 +161,7 @@ export async function preflightClaudeCode(): Promise<PreflightResult> {
       "  Then sign in:",
       "    claude          # run once, complete the login prompt",
       "",
-      "  Re-run `openremote host` once Claude Code is set up.",
+      "  Re-run `roamux host` once Claude Code is set up.",
     )
     return { ok: false, messages }
   }
@@ -174,7 +174,7 @@ export async function preflightClaudeCode(): Promise<PreflightResult> {
       "    claude          # run once, complete the login prompt",
       "    (or set ANTHROPIC_API_KEY in this shell)",
       "",
-      "  Then re-run `openremote host`.",
+      "  Then re-run `roamux host`.",
     )
     return { ok: false, messages }
   }

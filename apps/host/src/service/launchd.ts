@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import type { ServiceSpec, ServiceStatus } from "./index.js"
 
 /** launchd job label — also the plist basename. */
-export const LAUNCHD_LABEL = "ai.phyra.openremote"
+export const LAUNCHD_LABEL = "ai.phyra.roamux"
 
 function plistPath(): string {
   return join(homedir(), "Library", "LaunchAgents", `${LAUNCHD_LABEL}.plist`)

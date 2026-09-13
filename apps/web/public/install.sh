@@ -1,8 +1,8 @@
 #!/bin/sh
-# OpenRemote host CLI installer.
+# roamux host CLI installer.
 #   curl -fsSL https://remote.phyra.ai/install.sh | sh
 #
-# Detects your OS/arch, downloads the matching `openremote` binary from the
+# Detects your OS/arch, downloads the matching `roamux` binary from the
 # latest GitHub Release, and installs it to a directory on your PATH. No
 # dependencies required.
 set -e
@@ -10,9 +10,9 @@ set -e
 # Binaries are published as GitHub Release assets (not committed to the repo).
 # Override RELEASE_BASE to pin a specific tag, e.g.
 #   RELEASE_BASE=https://github.com/phyra-research/open-remote/releases/download/v0.2.0
-REPO="${OPENREMOTE_REPO:-phyra-research/open-remote}"
-RELEASE_BASE="${OPENREMOTE_RELEASE_BASE:-https://github.com/${REPO}/releases/latest/download}"
-INSTALL_DIR="${OPENREMOTE_INSTALL_DIR:-$HOME/.openremote/bin}"
+REPO="${ROAMUX_REPO:-phyra-research/open-remote}"
+RELEASE_BASE="${ROAMUX_RELEASE_BASE:-https://github.com/${REPO}/releases/latest/download}"
+INSTALL_DIR="${ROAMUX_INSTALL_DIR:-$HOME/.roamux/bin}"
 
 # ── detect platform ──────────────────────────────────────────────────────────
 os="$(uname -s)"
@@ -28,10 +28,10 @@ case "$arch" in
   *) echo "Unsupported architecture: $arch"; exit 1 ;;
 esac
 
-asset="openremote-${os}-${arch}"
+asset="roamux-${os}-${arch}"
 url="${RELEASE_BASE}/${asset}"
 
-echo "OpenRemote installer"
+echo "roamux installer"
 echo "  platform: ${os}-${arch}"
 echo "  download: ${url}"
 echo ""
@@ -46,9 +46,9 @@ if ! curl -fSL "$url" -o "$tmp"; then
   exit 1
 fi
 chmod +x "$tmp"
-mv "$tmp" "$INSTALL_DIR/openremote"
+mv "$tmp" "$INSTALL_DIR/roamux"
 
-echo "✓ Installed to $INSTALL_DIR/openremote"
+echo "✓ Installed to $INSTALL_DIR/roamux"
 
 # ── PATH hint ────────────────────────────────────────────────────────────────
 case ":$PATH:" in
@@ -63,6 +63,6 @@ esac
 
 echo ""
 echo "Next steps:"
-echo "    openremote login       # link this machine to your account"
+echo "    roamux login       # link this machine to your account"
 echo "    cd ~/your/project"
-echo "    openremote host        # start controlling it from the web app"
+echo "    roamux host        # start controlling it from the web app"

@@ -21,7 +21,7 @@ export function AppHeader({ back }: { back?: { href: string; label: string } }) 
             </Link>
           ) : null}
           <Link href="/" className="text-sm font-semibold tracking-wide text-neutral-100">
-            OpenRemote
+            roamux
           </Link>
         </div>
         <div className="flex items-center gap-2">

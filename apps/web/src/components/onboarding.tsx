@@ -24,14 +24,14 @@ export function Onboarding() {
       </Step>
 
       <Step n={2} label="Link it to your account">
-        <CopyBox text="openremote login" />
+        <CopyBox text="roamux login" />
         <p className="mt-1 text-xs text-neutral-500">
           Prints a code — approve it in your browser (you’re already signed in).
         </p>
       </Step>
 
       <Step n={3} label="Start it in your project">
-        <CopyBox text={"cd ~/your/project\nopenremote host"} />
+        <CopyBox text={"cd ~/your/project\nroamux host"} />
         <p className="mt-1 text-xs text-neutral-500">
           Requires{" "}
           <a href="https://opencode.ai" className="underline">
