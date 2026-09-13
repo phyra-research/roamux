@@ -1,6 +1,6 @@
 #!/bin/sh
 # OpenRemote host CLI installer.
-#   curl -fsSL https://open-remote-sigma.vercel.app/install.sh | sh
+#   curl -fsSL https://remote.phyra.ai/install.sh | sh
 #
 # Detects your OS/arch, downloads the matching `openremote` binary from the
 # latest GitHub Release, and installs it to a directory on your PATH. No

@@ -9,7 +9,7 @@ touch code. If you are an agent, treat this as a hard constraint, not advice.
 > the *how-to-run*.
 
 > **Status (keep this current):** OpenRemote is **deployed and live** — a
-> multi-host beta at `https://open-remote-sigma.vercel.app`. Phases P0–P3 have
+> multi-host beta at `https://remote.phyra.ai`. Phases P0–P3 have
 > shipped (foundations, Ably transport, accounts+multi-host, agent beta) plus a
 > downloadable CLI. Remaining work is tracked as GitHub issues **#44–#55**
 > (hardening, Phase-4 polish, post-beta). Do not treat this as an unbuilt V0.
@@ -233,7 +233,7 @@ cd apps/web && bun run build   # the Vercel deploy gate
 - **Never** print, commit, or bake real secrets (Ably key, Supabase
   service-role key, DB password, host secrets, access tokens). They live in
   `.env` (gitignored), Vercel env, or Supabase — not in code or the repo.
-- Assume the live app (`open-remote-sigma.vercel.app`), Supabase Cloud, and Ably
+- Assume the live app (`remote.phyra.ai`), Supabase Cloud, and Ably
   are **production**. Don't run migrations, wipe data, rotate keys, or redeploy
   unless the human explicitly asks.
 - `.env` and `apps/host/.openremote*` / `.openremote-live/` are local/host state —

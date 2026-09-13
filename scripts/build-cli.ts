@@ -6,7 +6,7 @@
  *
  * Config is injected at compile time via --define, read by apps/host/src/
  * baked-config.ts. Provide it via env:
- *   OPENREMOTE_API_URL   e.g. https://open-remote-sigma.vercel.app
+ *   OPENREMOTE_API_URL   e.g. https://remote.phyra.ai
  *   OPENREMOTE_ABLY_KEY  the shared beta Ably key
  *
  * Usage: OPENREMOTE_API_URL=... OPENREMOTE_ABLY_KEY=... bun run scripts/build-cli.ts

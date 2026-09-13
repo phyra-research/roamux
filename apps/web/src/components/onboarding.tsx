@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-const INSTALL_CMD = "curl -fsSL https://open-remote-sigma.vercel.app/install.sh | sh"
+const INSTALL_CMD = "curl -fsSL https://remote.phyra.ai/install.sh | sh"
 
 /**
  * First-run onboarding shown when a signed-in user has no machines yet. Gives
