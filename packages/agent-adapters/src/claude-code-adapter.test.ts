@@ -193,6 +193,11 @@ describe("ClaudeCodeAdapter run lifecycle", () => {
     expect(types).toContain("agent.completed")
     // Turn 0 pins the session id.
     expect(procs[0]?.args.slice(0, 4)).toEqual(["-p", "hi", "--session-id", session.id])
+    // Headless runs must accept edits — `default` would block every write with
+    // no interactive prompt to approve it.
+    const modeIdx = procs[0]?.args.indexOf("--permission-mode") ?? -1
+    expect(modeIdx).toBeGreaterThan(-1)
+    expect(procs[0]?.args[modeIdx + 1]).toBe("acceptEdits")
     await adapter.stop()
   })
 
