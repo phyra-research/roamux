@@ -26,7 +26,7 @@ function projectIdFor(absPath: string): string {
   return `proj_${createHash("sha256").update(absPath).digest("hex").slice(0, 12)}`
 }
 
-/** `openremote login` — link this machine to an account via device-auth. */
+/** `roamux login` — link this machine to an account via device-auth. */
 async function loginCommand(): Promise<void> {
   const config = loadConfig()
   const store = new HostStore(config.dbPath)
@@ -41,9 +41,9 @@ async function loginCommand(): Promise<void> {
 function serviceUsage(): void {
   console.log(`
   Usage:
-    openremote service install     Install + start the host as a background service
-    openremote service uninstall   Stop + remove the background service
-    openremote service status      Show whether the service is installed and running
+    roamux service install     Install + start the host as a background service
+    roamux service uninstall   Stop + remove the background service
+    roamux service status      Show whether the service is installed and running
 
   macOS uses a launchd agent, Linux a \`systemd --user\` unit. The service inherits
   HOST_NAME / TRANSPORT / AGENT_ADAPTER / HOST_DB_PATH / OPENCODE_URL from the shell
@@ -51,7 +51,7 @@ function serviceUsage(): void {
 `)
 }
 
-/** `openremote service <install|uninstall|status>` — manage the background service. */
+/** `roamux service <install|uninstall|status>` — manage the background service. */
 function serviceCommand(action: string | undefined): void {
   try {
     switch (action) {
@@ -102,7 +102,7 @@ async function buildAdapter(
   } else if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/.test(baseUrl)) {
     // Enforce the localhost-only invariant on an externally-provided URL.
     throw new Error(
-      `OPENCODE_URL must point at localhost (got "${baseUrl}"). OpenRemote never talks to a public OpenCode.`,
+      `OPENCODE_URL must point at localhost (got "${baseUrl}"). roamux never talks to a public OpenCode.`,
     )
   }
 
@@ -113,7 +113,7 @@ async function buildAdapter(
 function printBanner(config: HostConfig, info: HostInfo, pairingToken: string): void {
   const pairUrl = `${config.webUrl}/pair?token=${pairingToken}`
   console.log("")
-  console.log("  OpenRemote Host")
+  console.log("  roamux Host")
   console.log("")
   console.log(`  Device:    ${info.name}`)
   console.log(`  Adapter:   ${info.adapter}`)
@@ -182,7 +182,7 @@ async function main(): Promise<void> {
 
   // Transport selection: local relay WebSocket (default) or Ably (no relay —
   // host and clients meet on a shared channel). If this host is LINKED to an
-  // account (openremote login), use the account-scoped control channel so a
+  // account (roamux login), use the account-scoped control channel so a
   // signed-in browser reaches it by hostId — no pairing token needed (Beta §5.4).
   // Otherwise fall back to the pairing-token channel (pre-account / local dev).
   const account = store.loadAccount()
@@ -294,14 +294,14 @@ const VERSION = "0.1.0"
 
 function printHelp(): void {
   console.log(`
-  OpenRemote — run coding agents on your machine, control them from anywhere.
+  roamux — run coding agents on your machine, control them from anywhere.
 
   Usage:
-    openremote login              Link this machine to your OpenRemote account
-    openremote host               Start the host daemon (run your agents)
-    openremote service <cmd>      Run the host as a background service (install/uninstall/status)
-    openremote help               Show this help
-    openremote version            Show the version
+    roamux login              Link this machine to your roamux account
+    roamux host               Start the host daemon (run your agents)
+    roamux service <cmd>      Run the host as a background service (install/uninstall/status)
+    roamux help               Show this help
+    roamux version            Show the version
 
   Common options (via env):
     DEFAULT_PROJECT_PATH=<dir>    Project the agent works on (default: current dir)
@@ -309,9 +309,9 @@ function printHelp(): void {
     HOST_NAME=<name>              Display name for this machine
 
   Quick start:
-    1) openremote login           # approve in your browser
+    1) roamux login           # approve in your browser
     2) cd ~/your/project
-    3) openremote host            # now control it from the web app
+    3) roamux host            # now control it from the web app
 `)
 }
 
@@ -329,7 +329,7 @@ async function dispatch(): Promise<void> {
     case "version":
     case "--version":
     case "-v":
-      return void console.log(`openremote ${VERSION}`)
+      return void console.log(`roamux ${VERSION}`)
     case "host":
       return main()
     case "service":

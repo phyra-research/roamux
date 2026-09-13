@@ -4,10 +4,10 @@ import type { Metadata, Viewport } from "next"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "OpenRemote",
+  title: "roamux",
   description: "Remote control plane for local AI coding agents",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "OpenRemote", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "roamux", statusBarStyle: "black-translucent" },
   // Next emits <link rel="apple-touch-icon"> from this (iOS ignores manifest icons).
   icons: { apple: "/icons/icon-192.png" },
 }

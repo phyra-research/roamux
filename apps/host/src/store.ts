@@ -79,7 +79,7 @@ export class HostStore {
     return row?.abs_path ?? null
   }
 
-  /** Persist the account link from `openremote login` (device-auth result). */
+  /** Persist the account link from `roamux login` (device-auth result). */
   saveAccount(link: {
     apiUrl: string
     hostId: string
@@ -95,7 +95,7 @@ export class HostStore {
     )
   }
 
-  /** Load the account link, or null if this host hasn't run `openremote login`. */
+  /** Load the account link, or null if this host hasn't run `roamux login`. */
   loadAccount(): {
     apiUrl: string
     hostId: string
@@ -145,7 +145,7 @@ export class HostStore {
     return identity
   }
 
-  /** Rotate the pairing token (e.g. `openremote host --rotate-token`). */
+  /** Rotate the pairing token (e.g. `roamux host --rotate-token`). */
   rotatePairingToken(): string {
     const token = newPairingToken()
     this.db.run("UPDATE identity SET pairing_token = ? WHERE id = 1", [token])

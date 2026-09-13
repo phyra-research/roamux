@@ -19,9 +19,9 @@ describe("resolveSpec", () => {
     expect(spec.inlineEnv).not.toHaveProperty("ABLY_API_KEY")
   })
 
-  test("secret sidecar path sits under ~/.openremote-live", () => {
+  test("secret sidecar path sits under ~/.roamux-live", () => {
     const spec = resolveSpec({})
-    expect(spec.secretEnvFile.endsWith("/.openremote-live/service.env")).toBe(true)
-    expect(spec.logDir.endsWith("/.openremote-live/logs")).toBe(true)
+    expect(spec.secretEnvFile.endsWith("/.roamux-live/service.env")).toBe(true)
+    expect(spec.logDir.endsWith("/.roamux-live/logs")).toBe(true)
   })
 })

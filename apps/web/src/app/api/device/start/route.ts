@@ -4,7 +4,7 @@ import { randomSecret, userCode } from "../../../../lib/api/codes"
 import { badRequest, ok } from "../../../../lib/api/respond"
 
 /**
- * POST /api/device/start — begin `openremote login`. No auth: the daemon has no
+ * POST /api/device/start — begin `roamux login`. No auth: the daemon has no
  * session yet. Returns a device_code (the daemon polls with) and a user_code
  * (the human types in the browser). Env-driven base URL keeps it host-agnostic.
  */

@@ -36,7 +36,7 @@ function LoginInner() {
     <main className="flex flex-1 flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-6 text-center">
         <div>
-          <h1 className="text-lg font-semibold text-neutral-100">OpenRemote</h1>
+          <h1 className="text-lg font-semibold text-neutral-100">roamux</h1>
           <p className="mt-1 text-sm text-neutral-500">Control your agents from anywhere.</p>
         </div>
 

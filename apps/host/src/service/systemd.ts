@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 import type { ServiceSpec, ServiceStatus } from "./index.js"
 
 /** systemd --user unit name. */
-export const SYSTEMD_UNIT = "openremote.service"
+export const SYSTEMD_UNIT = "roamux.service"
 
 function unitPath(): string {
   return join(homedir(), ".config", "systemd", "user", SYSTEMD_UNIT)
@@ -20,7 +20,7 @@ function unitArg(s: string): string {
 export function renderUnit(spec: ServiceSpec): string {
   const lines: string[] = [
     "[Unit]",
-    "Description=OpenRemote host daemon",
+    "Description=roamux host daemon",
     "After=network-online.target",
     "Wants=network-online.target",
     "",

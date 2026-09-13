@@ -2,7 +2,7 @@ import { hostname } from "node:os"
 import type { HostStore } from "./store.js"
 
 /**
- * `openremote login` — device-authorization flow. Prints a short code, asks the
+ * `roamux login` — device-authorization flow. Prints a short code, asks the
  * user to approve it in their browser, polls until approved, then persists the
  * account link (hostId + host secret) to the local store. No secret is ever
  * pasted by the user (Beta §10.2).
@@ -49,7 +49,7 @@ export async function runLogin(opts: {
   } = start.data
 
   log("")
-  log("  Link this device to your OpenRemote account:")
+  log("  Link this device to your roamux account:")
   log("")
   log(`    1. Open:  ${verificationUri}`)
   log(`    2. Enter: ${userCode}`)
@@ -78,15 +78,15 @@ export async function runLogin(opts: {
         ...(poll.data.userId ? { userId: poll.data.userId } : {}),
       })
       log("")
-      log("  ✓ Device linked. You can start the host with `openremote host`.")
+      log("  ✓ Device linked. You can start the host with `roamux host`.")
       return
     }
     if (status === "expired" || status === "unknown") {
-      throw new Error("login code expired — run `openremote login` again")
+      throw new Error("login code expired — run `roamux login` again")
     }
     // status === "pending" → keep polling
   }
-  throw new Error("login timed out — run `openremote login` again")
+  throw new Error("login timed out — run `roamux login` again")
 }
 
 export function defaultHostName(): string {

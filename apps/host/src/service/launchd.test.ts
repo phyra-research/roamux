@@ -3,10 +3,10 @@ import type { ServiceSpec } from "./index.js"
 import { interpretLaunchdStatus, renderPlist } from "./launchd.js"
 
 const SPEC: ServiceSpec = {
-  execArgs: ["/opt/openremote/openremote", "host"],
+  execArgs: ["/opt/roamux/roamux", "host"],
   home: "/home/tester",
-  logDir: "/home/tester/.openremote-live/logs",
-  secretEnvFile: "/home/tester/.openremote-live/service.env",
+  logDir: "/home/tester/.roamux-live/logs",
+  secretEnvFile: "/home/tester/.roamux-live/service.env",
   inlineEnv: { HOST_NAME: "tester-box", TRANSPORT: "ably" },
   secretEnv: { ABLY_API_KEY: "super-secret-key" },
 }
@@ -19,12 +19,12 @@ describe("renderPlist", () => {
       '<plist version="1.0">',
       "<dict>",
       "\t<key>Label</key>",
-      "\t<string>ai.phyra.openremote</string>",
+      "\t<string>ai.phyra.roamux</string>",
       "\t<key>ProgramArguments</key>",
       "\t<array>",
       "\t\t<string>/bin/sh</string>",
       "\t\t<string>-c</string>",
-      "\t\t<string>[ -r '/home/tester/.openremote-live/service.env' ] &amp;&amp; . '/home/tester/.openremote-live/service.env'; exec '/opt/openremote/openremote' 'host'</string>",
+      "\t\t<string>[ -r '/home/tester/.roamux-live/service.env' ] &amp;&amp; . '/home/tester/.roamux-live/service.env'; exec '/opt/roamux/roamux' 'host'</string>",
       "\t</array>",
       "\t<key>RunAtLoad</key>",
       "\t<true/>",
@@ -33,9 +33,9 @@ describe("renderPlist", () => {
       "\t<key>WorkingDirectory</key>",
       "\t<string>/home/tester</string>",
       "\t<key>StandardOutPath</key>",
-      "\t<string>/home/tester/.openremote-live/logs/host.out.log</string>",
+      "\t<string>/home/tester/.roamux-live/logs/host.out.log</string>",
       "\t<key>StandardErrorPath</key>",
-      "\t<string>/home/tester/.openremote-live/logs/host.err.log</string>",
+      "\t<string>/home/tester/.roamux-live/logs/host.err.log</string>",
       "\t<key>EnvironmentVariables</key>",
       "\t<dict>",
       "\t\t<key>HOST_NAME</key>",
@@ -59,7 +59,7 @@ describe("renderPlist", () => {
     const out = renderPlist(SPEC)
     expect(out).not.toContain("ABLY_API_KEY")
     expect(out).not.toContain("super-secret-key")
-    expect(out).toContain("/home/tester/.openremote-live/service.env")
+    expect(out).toContain("/home/tester/.roamux-live/service.env")
   })
 })
 

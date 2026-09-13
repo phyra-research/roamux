@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Build the distributable `openremote` CLI binaries with production config baked
+ * Build the distributable `roamux` CLI binaries with production config baked
  * in. Produces one self-contained executable per target (no Bun/repo needed on
  * the user's machine). Output → dist/cli/.
  *
  * Config is injected at compile time via --define, read by apps/host/src/
  * baked-config.ts. Provide it via env:
- *   OPENREMOTE_API_URL   e.g. https://open-remote-sigma.vercel.app
+ *   OPENREMOTE_API_URL   e.g. https://remote.phyra.ai
  *   OPENREMOTE_ABLY_KEY  the shared beta Ably key
  *
  * Usage: OPENREMOTE_API_URL=... OPENREMOTE_ABLY_KEY=... bun run scripts/build-cli.ts
@@ -31,8 +31,8 @@ mkdirSync(OUT_DIR, { recursive: true })
 // (target triple → output filename). Bun cross-compiles to each. Beta ships
 // macOS arm64 + Linux x64; add more targets here as needed.
 const TARGETS: { target: string; out: string }[] = [
-  { target: "bun-darwin-arm64", out: "openremote-darwin-arm64" },
-  { target: "bun-linux-x64", out: "openremote-linux-x64" },
+  { target: "bun-darwin-arm64", out: "roamux-darwin-arm64" },
+  { target: "bun-linux-x64", out: "roamux-linux-x64" },
 ]
 
 const define = [

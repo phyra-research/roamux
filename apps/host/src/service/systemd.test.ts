@@ -3,10 +3,10 @@ import type { ServiceSpec } from "./index.js"
 import { renderUnit } from "./systemd.js"
 
 const SPEC: ServiceSpec = {
-  execArgs: ["/opt/openremote/openremote", "host"],
+  execArgs: ["/opt/roamux/roamux", "host"],
   home: "/home/tester",
-  logDir: "/home/tester/.openremote-live/logs",
-  secretEnvFile: "/home/tester/.openremote-live/service.env",
+  logDir: "/home/tester/.roamux-live/logs",
+  secretEnvFile: "/home/tester/.roamux-live/service.env",
   inlineEnv: { HOST_NAME: "tester-box", TRANSPORT: "ably" },
   secretEnv: { ABLY_API_KEY: "super-secret-key" },
 }
@@ -15,20 +15,20 @@ describe("renderUnit", () => {
   test("matches the expected systemd --user unit", () => {
     const expected = [
       "[Unit]",
-      "Description=OpenRemote host daemon",
+      "Description=roamux host daemon",
       "After=network-online.target",
       "Wants=network-online.target",
       "",
       "[Service]",
       "Type=simple",
-      "ExecStart=/opt/openremote/openremote host",
+      "ExecStart=/opt/roamux/roamux host",
       "Restart=on-failure",
       "WorkingDirectory=/home/tester",
       "Environment=HOST_NAME=tester-box",
       "Environment=TRANSPORT=ably",
-      "EnvironmentFile=-/home/tester/.openremote-live/service.env",
-      "StandardOutput=append:/home/tester/.openremote-live/logs/host.out.log",
-      "StandardError=append:/home/tester/.openremote-live/logs/host.err.log",
+      "EnvironmentFile=-/home/tester/.roamux-live/service.env",
+      "StandardOutput=append:/home/tester/.roamux-live/logs/host.out.log",
+      "StandardError=append:/home/tester/.roamux-live/logs/host.err.log",
       "",
       "[Install]",
       "WantedBy=default.target",
@@ -41,6 +41,6 @@ describe("renderUnit", () => {
     const out = renderUnit(SPEC)
     expect(out).not.toContain("ABLY_API_KEY")
     expect(out).not.toContain("super-secret-key")
-    expect(out).toContain("EnvironmentFile=-/home/tester/.openremote-live/service.env")
+    expect(out).toContain("EnvironmentFile=-/home/tester/.roamux-live/service.env")
   })
 })

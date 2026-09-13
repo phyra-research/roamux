@@ -1,5 +1,5 @@
 /**
- * OpenRemote service worker — minimal app-shell cache for installability.
+ * roamux service worker — minimal app-shell cache for installability.
  *
  * SECURITY (CLAUDE.md §3): authenticated traffic is NEVER intercepted or
  * cached. Any /api/* or /auth/* request, and anything carrying an

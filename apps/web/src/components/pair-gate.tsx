@@ -15,8 +15,7 @@ export function PairGate() {
     <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
       <h1 className="text-lg font-semibold text-neutral-100">Pair a device</h1>
       <p className="mt-2 max-w-xs text-sm text-neutral-400">
-        Run{" "}
-        <code className="rounded bg-ink-soft px-1 py-0.5 text-neutral-300">openremote host</code> on
+        Run <code className="rounded bg-ink-soft px-1 py-0.5 text-neutral-300">roamux host</code> on
         your machine and paste the pairing token it prints.
       </p>
       <form

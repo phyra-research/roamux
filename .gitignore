@@ -12,7 +12,10 @@ apps/web/public/cli/
 *.sqlite
 *.sqlite-*
 *.db
+.roamux/
+.roamux-live/
 .openremote/
+.openremote-live/
 
 # env
 .env

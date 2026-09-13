@@ -49,10 +49,8 @@ export function loadConfig(): HostConfig {
   if (transport === "ably" && !ablyApiKey) {
     throw new Error("TRANSPORT=ably requires ABLY_API_KEY (or a packaged build)")
   }
-  // Packaged binaries store state under ~/.openremote so they work from any cwd.
-  const defaultDb = IS_PACKAGED
-    ? join(homedir(), ".openremote", "host.sqlite")
-    : ".openremote/host.sqlite"
+  // Packaged binaries store state under ~/.roamux so they work from any cwd.
+  const defaultDb = IS_PACKAGED ? join(homedir(), ".roamux", "host.sqlite") : ".roamux/host.sqlite"
   return {
     relayUrl: env("RELAY_URL") ?? "ws://127.0.0.1:8787",
     hostName: env("HOST_NAME") ?? hostname(),

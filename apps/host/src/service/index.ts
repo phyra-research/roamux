@@ -6,7 +6,7 @@ import { installLaunchd, launchdStatus, uninstallLaunchd } from "./launchd.js"
 import { installSystemd, systemdStatus, uninstallSystemd } from "./systemd.js"
 
 /**
- * Install `openremote host` as a user-level background service so it survives
+ * Install `roamux host` as a user-level background service so it survives
  * terminal-close, logout, and reboot. macOS uses a launchd agent, Linux uses a
  * `systemd --user` unit; Windows is not supported yet.
  *
@@ -30,7 +30,7 @@ export const INLINE_ENV_VARS = [
 export const SECRET_ENV_VARS = ["ABLY_API_KEY"] as const
 
 export type ServiceSpec = {
-  /** argv for the daemon, e.g. ["/usr/local/bin/openremote", "host"]. */
+  /** argv for the daemon, e.g. ["/usr/local/bin/roamux", "host"]. */
   execArgs: string[]
   /** Service working directory (the user's home). */
   home: string
@@ -61,7 +61,7 @@ function pickEnv(
 /** Build the platform-neutral service spec from the current environment. */
 export function resolveSpec(env: Record<string, string | undefined> = process.env): ServiceSpec {
   const home = homedir()
-  const liveDir = join(home, ".openremote-live")
+  const liveDir = join(home, ".roamux-live")
   // A packaged binary IS process.execPath, so `<binary> host` is enough. From
   // source, execPath is `bun`, so the script path has to ride along too.
   const execArgs = IS_PACKAGED
@@ -83,7 +83,7 @@ function currentPlatform(): Platform {
   if (process.platform === "darwin") return "launchd"
   if (process.platform === "linux") return "systemd"
   throw new Error(
-    `openremote service is not supported on ${process.platform} yet — run \`openremote host\` in a terminal instead.`,
+    `roamux service is not supported on ${process.platform} yet — run \`roamux host\` in a terminal instead.`,
   )
 }
 
@@ -115,7 +115,7 @@ export function printServiceStatus(): void {
   const platform = currentPlatform()
   const status = platform === "launchd" ? launchdStatus() : systemdStatus()
   console.log("")
-  console.log(`  OpenRemote service (${platform})`)
+  console.log(`  roamux service (${platform})`)
   console.log(`  installed: ${status.installed ? "yes" : "no"}`)
   console.log(`  running:   ${status.running ? "yes" : "no"}`)
   if (status.detail) console.log(`  ${status.detail}`)
