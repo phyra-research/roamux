@@ -2,14 +2,19 @@
 import { createHash } from "node:crypto"
 import { basename } from "node:path"
 import type { HarnessAdapter } from "@openremote/agent-adapters"
-import { CodexAdapter, MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
+import {
+  ClaudeCodeAdapter,
+  CodexAdapter,
+  MockAgentAdapter,
+  OpenCodeAdapter,
+} from "@openremote/agent-adapters"
 import { AblyTransport, type HostInfo, controlChannel, pairingChannel } from "@openremote/protocol"
 import { nodeRealtimeCtor } from "@openremote/protocol/ably-node"
 import { type HostConfig, loadConfig } from "./config.js"
 import { HostSessionManager } from "./host-session-manager.js"
 import { defaultHostName, runLogin } from "./login.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
-import { preflightCodex, preflightOpenCode } from "./preflight.js"
+import { preflightClaudeCode, preflightCodex, preflightOpenCode } from "./preflight.js"
 import { RelayConnection } from "./relay-connection.js"
 import { installService, printServiceStatus, uninstallService } from "./service/index.js"
 import { HostStore } from "./store.js"
@@ -81,6 +86,11 @@ async function buildAdapter(
     return { adapter: new CodexAdapter({ cwd: config.defaultProjectPath }) }
   }
 
+  if (config.adapter === "claude-code") {
+    // No server to spawn — Claude Code print mode is one subprocess per prompt.
+    return { adapter: new ClaudeCodeAdapter({ cwd: config.defaultProjectPath }) }
+  }
+
   // opencode: use the given URL, or spawn a local server bound to localhost.
   let baseUrl = config.opencodeUrl
   let opencode: SpawnedOpenCode | undefined
@@ -126,24 +136,21 @@ async function main(): Promise<void> {
   const config = loadConfig()
 
   // Preflight: make sure the selected agent CLI is installed and usable —
-  // otherwise it silently returns nothing (or fails every run). Print
-  // actionable guidance and exit cleanly instead of crashing later.
-  if (config.adapter === "opencode" && !config.opencodeUrl) {
-    const pre = await preflightOpenCode()
-    if (!pre.ok) {
-      console.log("")
-      for (const line of pre.messages) console.log(`  ${line}`)
-      console.log("")
-      process.exit(1)
-    }
-  } else if (config.adapter === "codex") {
-    const pre = await preflightCodex()
-    if (!pre.ok) {
-      console.log("")
-      for (const line of pre.messages) console.log(`  ${line}`)
-      console.log("")
-      process.exit(1)
-    }
+  // otherwise it silently returns nothing (or fails every run). Print actionable
+  // guidance and exit cleanly instead of crashing later.
+  const preflight =
+    config.adapter === "opencode" && !config.opencodeUrl
+      ? await preflightOpenCode()
+      : config.adapter === "codex"
+        ? await preflightCodex()
+        : config.adapter === "claude-code"
+          ? await preflightClaudeCode()
+          : null
+  if (preflight && !preflight.ok) {
+    console.log("")
+    for (const line of preflight.messages) console.log(`  ${line}`)
+    console.log("")
+    process.exit(1)
   }
 
   const store = new HostStore(config.dbPath)
