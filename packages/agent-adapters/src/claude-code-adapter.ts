@@ -47,8 +47,13 @@ const STREAM_FLAGS = [
   "stream-json",
   "--include-partial-messages",
   "--verbose",
+  // Headless (`-p`) print mode has no interactive prompt, so `default` would
+  // block every file edit with nobody to approve it. `acceptEdits` lets the
+  // agent write/edit files (its core job here) while still guarding riskier
+  // actions. Until the phone-side approval bridge is wired for Claude Code,
+  // this is the usable default for a remote coding agent.
   "--permission-mode",
-  "default",
+  "acceptEdits",
 ]
 
 type SessionRec = { id: string; cwd: string; turns: number }
