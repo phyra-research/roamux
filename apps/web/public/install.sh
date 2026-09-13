@@ -9,8 +9,8 @@ set -e
 
 # Binaries are published as GitHub Release assets (not committed to the repo).
 # Override RELEASE_BASE to pin a specific tag, e.g.
-#   RELEASE_BASE=https://github.com/phyra-research/open-remote/releases/download/v0.2.0
-REPO="${ROAMUX_REPO:-phyra-research/open-remote}"
+#   RELEASE_BASE=https://github.com/phyra-research/roamux/releases/download/v0.2.0
+REPO="${ROAMUX_REPO:-phyra-research/roamux}"
 RELEASE_BASE="${ROAMUX_RELEASE_BASE:-https://github.com/${REPO}/releases/latest/download}"
 INSTALL_DIR="${ROAMUX_INSTALL_DIR:-$HOME/.roamux/bin}"
 
