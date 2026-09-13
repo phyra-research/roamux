@@ -1,7 +1,7 @@
 import { hostname } from "node:os"
 import { resolve } from "node:path"
 
-export type AdapterKind = "mock" | "opencode" | "claude-code"
+export type AdapterKind = "mock" | "opencode" | "claude-code" | "codex"
 export type TransportKind = "ws" | "ably"
 
 export type HostConfig = {
@@ -33,8 +33,11 @@ export const IS_PACKAGED = BAKED_API_URL !== undefined
 
 export function loadConfig(): HostConfig {
   const adapter = (env("AGENT_ADAPTER") ?? (IS_PACKAGED ? "opencode" : "mock")) as AdapterKind
-  if (adapter !== "mock" && adapter !== "opencode" && adapter !== "claude-code") {
-    throw new Error(`AGENT_ADAPTER must be "mock", "opencode", or "claude-code", got "${adapter}"`)
+  const valid: AdapterKind[] = ["mock", "opencode", "claude-code", "codex"]
+  if (!valid.includes(adapter)) {
+    throw new Error(
+      `AGENT_ADAPTER must be one of ${valid.map((v) => `"${v}"`).join(", ")}, got "${adapter}"`,
+    )
   }
   // Packaged binaries default to Ably (they reach a hosted account); running from
   // source defaults to the local relay WS.

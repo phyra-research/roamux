@@ -2,14 +2,19 @@
 import { createHash } from "node:crypto"
 import { basename } from "node:path"
 import type { HarnessAdapter } from "@openremote/agent-adapters"
-import { ClaudeCodeAdapter, MockAgentAdapter, OpenCodeAdapter } from "@openremote/agent-adapters"
+import {
+  ClaudeCodeAdapter,
+  CodexAdapter,
+  MockAgentAdapter,
+  OpenCodeAdapter,
+} from "@openremote/agent-adapters"
 import { AblyTransport, type HostInfo, controlChannel, pairingChannel } from "@openremote/protocol"
 import { nodeRealtimeCtor } from "@openremote/protocol/ably-node"
 import { type HostConfig, loadConfig } from "./config.js"
 import { HostSessionManager } from "./host-session-manager.js"
 import { defaultHostName, runLogin } from "./login.js"
 import { type SpawnedOpenCode, spawnOpenCode } from "./opencode-process.js"
-import { preflightClaudeCode, preflightOpenCode } from "./preflight.js"
+import { preflightClaudeCode, preflightCodex, preflightOpenCode } from "./preflight.js"
 import { RelayConnection } from "./relay-connection.js"
 import { installService, printServiceStatus, uninstallService } from "./service/index.js"
 import { HostStore } from "./store.js"
@@ -76,6 +81,11 @@ async function buildAdapter(
     return { adapter: new MockAgentAdapter() }
   }
 
+  if (config.adapter === "codex") {
+    // No server to spawn — codex exec is one subprocess per prompt.
+    return { adapter: new CodexAdapter({ cwd: config.defaultProjectPath }) }
+  }
+
   if (config.adapter === "claude-code") {
     // No server to spawn — Claude Code print mode is one subprocess per prompt.
     return { adapter: new ClaudeCodeAdapter({ cwd: config.defaultProjectPath }) }
@@ -125,14 +135,17 @@ function printBanner(config: HostConfig, info: HostInfo, pairingToken: string): 
 async function main(): Promise<void> {
   const config = loadConfig()
 
-  // Preflight: catch the things that silently break a run (agent not installed,
-  // not authed / no model) and print actionable guidance instead of crashing.
+  // Preflight: make sure the selected agent CLI is installed and usable —
+  // otherwise it silently returns nothing (or fails every run). Print actionable
+  // guidance and exit cleanly instead of crashing later.
   const preflight =
     config.adapter === "opencode" && !config.opencodeUrl
       ? await preflightOpenCode()
-      : config.adapter === "claude-code"
-        ? await preflightClaudeCode()
-        : null
+      : config.adapter === "codex"
+        ? await preflightCodex()
+        : config.adapter === "claude-code"
+          ? await preflightClaudeCode()
+          : null
   if (preflight && !preflight.ok) {
     console.log("")
     for (const line of preflight.messages) console.log(`  ${line}`)

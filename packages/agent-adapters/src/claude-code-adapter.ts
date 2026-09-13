@@ -1,5 +1,6 @@
-import type { AgentSession } from "@openremote/protocol"
+import type { AgentSession, DiffSnapshot } from "@openremote/protocol"
 import { EventQueue } from "./event-queue.js"
+import { readGitWorkingTree } from "./git-diff.js"
 import type { HarnessAdapter, SessionEvent } from "./types.js"
 
 /**
@@ -130,6 +131,12 @@ export class ClaudeCodeAdapter implements HarnessAdapter {
 
   async abortSession(sessionId: string): Promise<void> {
     this.running.get(sessionId)?.kill("SIGTERM")
+  }
+
+  async requestDiff(_sessionId: string): Promise<DiffSnapshot> {
+    // Claude Code edits files on disk directly, so the git working tree of the
+    // session's cwd is the source of truth for what changed.
+    return { files: readGitWorkingTree(this.cwd) }
   }
 
   async respondToPermission(): Promise<void> {

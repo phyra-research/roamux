@@ -1,8 +1,8 @@
 /**
- * Preflight checks for `openremote host`. Catches the two things that silently
- * break the experience for a subprocess-backed agent — the CLI not installed, or
- * not authenticated — and prints actionable guidance instead of a cryptic spawn
- * error or empty agent replies. One function per supported adapter.
+ * Preflight checks for `openremote host`. Catches the things that silently break
+ * the experience — the agent CLI not installed, or not usable (no model / not
+ * signed in) — and prints actionable guidance instead of a cryptic spawn error
+ * or empty agent replies. One function per supported adapter.
  */
 
 export type PreflightResult = { ok: boolean; messages: string[] }
@@ -71,6 +71,27 @@ export async function preflightOpenCode(): Promise<PreflightResult> {
   return { ok: true, messages }
 }
 
+/** Does `codex login status` report a logged-in account? */
+async function codexIsAuthed(): Promise<boolean> {
+  try {
+    const proc = Bun.spawn(["codex", "login", "status"], { stdout: "pipe", stderr: "pipe" })
+    await proc.exited
+    if (proc.exitCode !== 0) return false
+    // `codex login status` prints its human-readable status to STDERR, not
+    // stdout (verified) — check both so a future version swapping streams
+    // doesn't silently break this.
+    const [out, err] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ])
+    // "Logged in using …" vs "Not logged in" — anchor so the latter doesn't
+    // false-match on the "logged in" substring it also contains.
+    return /^logged in/i.test(out.trim()) || /^logged in/i.test(err.trim())
+  } catch {
+    return false
+  }
+}
+
 /** Does `claude auth status` report a logged-in account? */
 async function claudeIsAuthed(): Promise<boolean> {
   try {
@@ -82,6 +103,44 @@ async function claudeIsAuthed(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+/**
+ * Run Codex preflight. Same shape as `preflightOpenCode` — ok=false with
+ * guidance when the CLI is missing or not signed in.
+ */
+export async function preflightCodex(): Promise<PreflightResult> {
+  const messages: string[] = []
+
+  if (!(await commandExists("codex"))) {
+    messages.push(
+      "Codex is not installed — that's the agent OpenRemote would run.",
+      "",
+      "  Install it:",
+      "    npm install -g @openai/codex",
+      "    (see https://developers.openai.com/codex/cli for other options)",
+      "",
+      "  Then sign in:",
+      "    codex login",
+      "",
+      "  Re-run `openremote host` once Codex is set up.",
+    )
+    return { ok: false, messages }
+  }
+
+  if (!(await codexIsAuthed())) {
+    messages.push(
+      "Codex is installed, but not signed in — the agent would fail every run.",
+      "Sign in:",
+      "",
+      "    codex login",
+      "",
+      "  Then re-run `openremote host`.",
+    )
+    return { ok: false, messages }
+  }
+
+  return { ok: true, messages }
 }
 
 /**
