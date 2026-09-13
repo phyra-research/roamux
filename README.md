@@ -1,6 +1,6 @@
 <div align="center">
 
-# OpenRemote
+# roamux
 
 **Run AI coding agents on your own machines. Control them from anywhere.**
 
@@ -20,7 +20,7 @@ signs in and steers the agent live.
 
 ## What it is
 
-OpenRemote is a **remote control plane for AI coding agents running on machines
+roamux is a **remote control plane for AI coding agents running on machines
 you own**. Install a small host daemon on any computer; it dials out to the
 cloud and lets your authenticated devices watch and steer its agents. From your
 phone you can:
@@ -36,7 +36,7 @@ messages and stores only metadata (labels and ids) — never your files, paths,
 credentials, or model keys.
 
 Supported agents (bring your own): **[OpenCode](https://opencode.ai)**,
-**[Claude Code](https://claude.com/claude-code)**, and **Codex**. OpenRemote
+**[Claude Code](https://claude.com/claude-code)**, and **Codex**. roamux
 does not implement its own agent — it drives yours through a swappable
 `HarnessAdapter`.
 
@@ -49,11 +49,11 @@ does not implement its own agent — it drives yours through a swappable
 curl -fsSL https://remote.phyra.ai/install.sh | sh
 
 # 2. Link it to your account (opens a code — approve it in your browser)
-openremote login
+roamux login
 
 # 3. Start it in the project you want the agent to work on
 cd ~/your/project
-openremote host
+roamux host
 ```
 
 Then open **[the web app](https://remote.phyra.ai)** on your phone
@@ -61,7 +61,7 @@ or browser, sign in, pick your machine → **New Session** → choose the projec
 agent + a task → **Start**, and watch it run.
 
 > **Keep it running in the background** (survives closing the terminal / logout):
-> `openremote service install`
+> `roamux service install`
 
 > You need one of the supported agent CLIs installed and configured on the host
 > ([OpenCode](https://opencode.ai) `opencode auth login`, or
@@ -72,11 +72,11 @@ agent + a task → **Start**, and watch it run.
 
 | Command | What it does |
 | --- | --- |
-| `openremote login` | Link this machine to your account (device authorization) |
-| `openremote host` | Start the host daemon and serve your agents |
-| `openremote service install` | Install the host as a background service (launchd / systemd) |
-| `openremote service status` / `uninstall` | Manage the background service |
-| `openremote help` · `openremote version` | Usage / version |
+| `roamux login` | Link this machine to your account (device authorization) |
+| `roamux host` | Start the host daemon and serve your agents |
+| `roamux service install` | Install the host as a background service (launchd / systemd) |
+| `roamux service status` / `uninstall` | Manage the background service |
+| `roamux help` · `roamux version` | Usage / version |
 
 Pick the agent with `AGENT_ADAPTER=opencode|claude-code|codex` and the project
 with `DEFAULT_PROJECT_PATH=<dir>`.
@@ -84,7 +84,7 @@ with `DEFAULT_PROJECT_PATH=<dir>`.
 ## How it works
 
 ```
-Phone / Browser ─▶ OpenRemote Cloud (web + API)        your machine
+Phone / Browser ─▶ roamux Cloud (web + API)        your machine
       │                 │  auth · host & session registry     host daemon ─▶ agent ─▶ model
       │                 │  mints scoped realtime tokens              ▲
       └─────────────── realtime transport (Ably) ─────────────────────┘   (host dials OUT)
@@ -119,7 +119,7 @@ design of record).
 
 ```
 apps/
-  host/    the daemon + `openremote` CLI. Runs on the user's machine, dials out,
+  host/    the daemon + `roamux` CLI. Runs on the user's machine, dials out,
            owns sessions. Compiles to a single binary.
   relay/   local-dev WebSocket router (not used in production — Ably replaces it).
   web/     Next.js — the mobile-first control UI + API + auth. Deploys to Vercel.

@@ -1,6 +1,6 @@
-# OpenRemote — Architecture (V0, as-built)
+# roamux — Architecture (V0, as-built)
 
-This document explains how OpenRemote is put together **today**: the components,
+This document explains how roamux is put together **today**: the components,
 the trust boundaries, the message protocol, and the data flows for the core
 actions (pairing, prompting, streaming events, stopping, and permissions).
 
@@ -16,10 +16,10 @@ exists to keep those lines intact.
 
 ## 1. System overview
 
-OpenRemote is a **remote control plane for local AI coding agents**. Your
+roamux is a **remote control plane for local AI coding agents**. Your
 machine stays the execution host; a phone or remote browser watches and steers
 the local agent through a relay. The agent runtime for V0 is
-[OpenCode](https://opencode.ai) — OpenRemote does **not** implement its own agent.
+[OpenCode](https://opencode.ai) — roamux does **not** implement its own agent.
 
 ```mermaid
 flowchart TD
@@ -97,11 +97,11 @@ flowchart LR
 
 ## 3. The one abstraction boundary
 
-OpenRemote should eventually drive *any* agent runtime, so exactly one seam is
+roamux should eventually drive *any* agent runtime, so exactly one seam is
 designed up front and kept pristine:
 
 ```
-OpenRemote protocol   ⇕   AgentAdapter   ⇕   OpenCode
+roamux protocol   ⇕   AgentAdapter   ⇕   OpenCode
 ```
 
 - Everything above the adapter (host, relay, web) speaks only the **normalized
@@ -372,7 +372,7 @@ flowchart LR
 ## 8. Persistence
 
 The host keeps a tiny SQLite database (`HOST_DB_PATH`, default
-`.openremote/host.sqlite`):
+`.roamux/host.sqlite`):
 
 - **`identity`** — a stable `deviceId`, the current `pairingToken`, and the
   machine `name`, so a host keeps its identity across restarts.

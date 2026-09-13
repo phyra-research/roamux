@@ -1,6 +1,6 @@
 # Security Policy
 
-OpenRemote gives remote devices control over agents running on your own
+roamux gives remote devices control over agents running on your own
 machines, so we take security seriously. Thank you for helping keep it safe.
 
 ## Reporting a vulnerability
