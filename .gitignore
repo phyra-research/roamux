@@ -5,6 +5,9 @@ out/
 *.log
 *.tsbuildinfo
 
+# CLI binaries — published as GitHub Release assets, never committed (see #44)
+apps/web/public/cli/
+
 # local runtime state
 *.sqlite
 *.sqlite-*

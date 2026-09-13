@@ -22,8 +22,10 @@ if (!API_URL || !ABLY_KEY) {
 }
 
 const ENTRY = join(import.meta.dir, "..", "apps", "host", "src", "index.ts")
-// Serve straight from the web app's public dir so Vercel hosts them at /cli/*.
-const OUT_DIR = join(import.meta.dir, "..", "apps", "web", "public", "cli")
+// Output to dist/cli/ (gitignored). Binaries are published as GitHub Release
+// assets, NOT committed to the repo (they're ~60–80MB each and OOM the commit).
+// Upload dist/cli/* to a GitHub Release; install.sh pulls from releases/latest.
+const OUT_DIR = join(import.meta.dir, "..", "dist", "cli")
 mkdirSync(OUT_DIR, { recursive: true })
 
 // (target triple → output filename). Bun cross-compiles to each. Beta ships

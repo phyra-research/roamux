@@ -2,11 +2,16 @@
 # OpenRemote host CLI installer.
 #   curl -fsSL https://open-remote-sigma.vercel.app/install.sh | sh
 #
-# Detects your OS/arch, downloads the matching `openremote` binary, and installs
-# it to a directory on your PATH. No dependencies required.
+# Detects your OS/arch, downloads the matching `openremote` binary from the
+# latest GitHub Release, and installs it to a directory on your PATH. No
+# dependencies required.
 set -e
 
-BASE_URL="${OPENREMOTE_BASE_URL:-https://open-remote-sigma.vercel.app}"
+# Binaries are published as GitHub Release assets (not committed to the repo).
+# Override RELEASE_BASE to pin a specific tag, e.g.
+#   RELEASE_BASE=https://github.com/phyra-research/open-remote/releases/download/v0.2.0
+REPO="${OPENREMOTE_REPO:-phyra-research/open-remote}"
+RELEASE_BASE="${OPENREMOTE_RELEASE_BASE:-https://github.com/${REPO}/releases/latest/download}"
 INSTALL_DIR="${OPENREMOTE_INSTALL_DIR:-$HOME/.openremote/bin}"
 
 # ── detect platform ──────────────────────────────────────────────────────────
@@ -24,7 +29,7 @@ case "$arch" in
 esac
 
 asset="openremote-${os}-${arch}"
-url="${BASE_URL}/cli/${asset}"
+url="${RELEASE_BASE}/${asset}"
 
 echo "OpenRemote installer"
 echo "  platform: ${os}-${arch}"
@@ -36,7 +41,8 @@ mkdir -p "$INSTALL_DIR"
 tmp="$(mktemp)"
 if ! curl -fSL "$url" -o "$tmp"; then
   echo "Failed to download $url"
-  echo "This platform's binary may not be published yet."
+  echo "This platform's binary may not be in the latest release yet."
+  echo "See https://github.com/${REPO}/releases"
   exit 1
 fi
 chmod +x "$tmp"
