@@ -176,19 +176,37 @@ export class MockAgentAdapter implements HarnessAdapter {
 
     try {
       await this.delay(ac.signal)
-      this.emit(sessionId, { type: "tool.started", tool: "read", input: { path: "README.md" } })
+      const readCallId = `call-${newId().slice(0, 8)}`
+      this.emit(sessionId, {
+        type: "tool.started",
+        tool: "read",
+        callId: readCallId,
+        input: { path: "README.md" },
+      })
       await this.delay(ac.signal)
       this.emit(sessionId, {
         type: "tool.completed",
         tool: "read",
+        callId: readCallId,
         output: "# my-project\nA sample repository.",
       })
       this.emit(sessionId, { type: "file.changed", path: "README.md" })
 
       await this.delay(ac.signal)
-      this.emit(sessionId, { type: "tool.started", tool: "grep", input: { pattern: "auth" } })
+      const grepCallId = `call-${newId().slice(0, 8)}`
+      this.emit(sessionId, {
+        type: "tool.started",
+        tool: "grep",
+        callId: grepCallId,
+        input: { pattern: "auth" },
+      })
       await this.delay(ac.signal)
-      this.emit(sessionId, { type: "tool.completed", tool: "grep", output: "src/auth.ts:12" })
+      this.emit(sessionId, {
+        type: "tool.completed",
+        tool: "grep",
+        callId: grepCallId,
+        output: "src/auth.ts:12",
+      })
 
       for (const chunk of ["I inspected ", "the repository ", "and here is ", "what it does…"]) {
         await this.delay(ac.signal)
