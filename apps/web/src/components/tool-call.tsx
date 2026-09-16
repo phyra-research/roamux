@@ -108,7 +108,7 @@ function looksFailed(output: unknown): boolean {
   return false
 }
 
-function primaryArg(input: unknown): string | undefined {
+export function primaryArg(input: unknown): string | undefined {
   if (input && typeof input === "object") {
     const obj = input as Record<string, unknown>
     const primary = obj.command ?? obj.pattern ?? obj.path ?? obj.filePath ?? obj.file_path
@@ -117,7 +117,7 @@ function primaryArg(input: unknown): string | undefined {
   return undefined
 }
 
-function toolLabel(tool: string): string {
+export function toolLabel(tool: string): string {
   return tool.length > 0 ? tool[0].toUpperCase() + tool.slice(1) : tool
 }
 
