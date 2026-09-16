@@ -4,6 +4,8 @@ import { Onboarding } from "@/components/onboarding"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { ErrorCard } from "@/components/ui/error-card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { type ApiHost, useHosts } from "@/lib/use-hosts"
 import Link from "next/link"
 import { useState } from "react"
@@ -14,7 +16,7 @@ import { useState } from "react"
  * its sessions. No global auto-connect (that mixed sessions across hosts).
  */
 export function MachinesList() {
-  const { hosts, loading, error, signedIn, revoke, rename } = useHosts()
+  const { hosts, loading, error, signedIn, refresh, revoke, rename } = useHosts()
   const [showAdd, setShowAdd] = useState(false)
 
   if (!signedIn) {
@@ -27,8 +29,25 @@ export function MachinesList() {
       </Empty>
     )
   }
-  if (loading) return <Empty>Loading machines…</Empty>
-  if (error) return <Empty>Couldn’t load machines: {error}</Empty>
+  if (loading) {
+    return (
+      <ul className="space-y-2">
+        {[0, 1, 2].map((i) => (
+          <li key={i}>
+            <Card variant="outlined" className="flex items-center gap-3">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  if (error) {
+    return <ErrorCard title="Couldn't load machines" description={error} onRetry={refresh} />
+  }
   // No machines → onboarding is the whole view.
   if (hosts.length === 0) {
     return <Onboarding />

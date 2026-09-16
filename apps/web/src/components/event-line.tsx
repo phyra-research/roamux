@@ -1,3 +1,4 @@
+import { ErrorCard } from "@/components/ui/error-card"
 import type { AgentEvent } from "@openremote/protocol"
 
 /** Render one normalized agent event as a compact, scannable line. */
@@ -29,7 +30,7 @@ export function EventLine({ event }: { event: AgentEvent }) {
     case "agent.completed":
       return <Meta text="Done" />
     case "agent.failed":
-      return <div className="text-body font-medium text-red-400">✗ {event.error}</div>
+      return <ErrorCard title="Command failed" description={event.error} />
     // permission.requested is rendered as an interactive card elsewhere;
     // diff.snapshot is rendered by <DiffView>, not as a timeline line.
     case "permission.requested":
