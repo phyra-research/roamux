@@ -7,19 +7,18 @@ export function EventLine({ event }: { event: AgentEvent }) {
       return <Meta text="Session started" />
     case "terminal.output":
       return (
-        <pre className="overflow-x-auto rounded-lg bg-black/40 px-3 py-2 font-mono text-xs text-neutral-300">
+        <pre className="overflow-x-auto rounded-lg bg-black/40 px-3 py-2 font-mono text-caption text-neutral-300">
           {event.text}
         </pre>
       )
     case "file.changed":
-      return (
-        <div className="text-sm text-neutral-400">
-          <span className="text-violet-400">±</span> <span className="font-mono">{event.path}</span>
-        </div>
-      )
+      return <div className="font-mono text-caption text-neutral-500">± {event.path}</div>
     case "assistant.message":
+      // Prominent main content: unboxed, brighter, relaxed line-height — the
+      // one role with no card/border, so it's what reads as "the point" amid
+      // everything else on the page being boxed or muted.
       return (
-        <div className="whitespace-pre-wrap rounded-xl bg-ink-soft px-3 py-2 text-sm text-neutral-100">
+        <div className="whitespace-pre-wrap text-body leading-relaxed text-neutral-50">
           {event.text}
         </div>
       )
@@ -30,7 +29,7 @@ export function EventLine({ event }: { event: AgentEvent }) {
     case "agent.completed":
       return <Meta text="Done" />
     case "agent.failed":
-      return <div className="text-sm text-red-400">✗ {event.error}</div>
+      return <div className="text-body font-medium text-red-400">✗ {event.error}</div>
     // permission.requested is rendered as an interactive card elsewhere;
     // diff.snapshot is rendered by <DiffView>, not as a timeline line.
     case "permission.requested":
@@ -50,5 +49,5 @@ export function EventLine({ event }: { event: AgentEvent }) {
 }
 
 function Meta({ text }: { text: string }) {
-  return <div className="text-xs uppercase tracking-wider text-neutral-600">{text}</div>
+  return <div className="text-caption uppercase tracking-wider text-neutral-600">{text}</div>
 }
