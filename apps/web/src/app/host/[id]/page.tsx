@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/use-auth"
 import { useHosts } from "@/lib/use-hosts"
 import { controlChannel } from "@openremote/protocol"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 
 /**
@@ -24,7 +24,11 @@ export default function HostPage() {
   const router = useRouter()
   const { state, sendCommand, connectToHost } = useRelay()
   const { hosts, refresh } = useHosts()
-  const [creating, setCreating] = useState(false)
+  const searchParams = useSearchParams()
+  // The machines-list "+ New session" CTA links here with ?new=1 — it can't
+  // create inline (project/harness data needs a live connection), so this is
+  // how it hands off into the existing flow.
+  const [creating, setCreating] = useState(() => searchParams.get("new") === "1")
 
   const host = hosts.find((h) => h.id === hostId)
 
