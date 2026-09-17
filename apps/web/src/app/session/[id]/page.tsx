@@ -5,8 +5,8 @@ import { DiffView } from "@/components/diff-view"
 import { EventLine } from "@/components/event-line"
 import { PermissionCard } from "@/components/permission-card"
 import { ToolCallCard, groupTimelineEntries } from "@/components/tool-call"
+import { StreamingBox, TurnBlock, groupIntoTurns } from "@/components/turn"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { useRelay } from "@/lib/relay-provider"
 import { use, useEffect, useMemo, useRef, useState } from "react"
 
@@ -23,6 +23,8 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const permission = state.permissions[sessionId]
   const isRunning = session?.status === "running" || streaming.length > 0
   const items = useMemo(() => groupTimelineEntries(timeline, isRunning), [timeline, isRunning])
+  const turns = useMemo(() => groupIntoTurns(items), [items])
+  const lastTurnOpen = turns.length > 0 && (turns[turns.length - 1]?.open ?? false)
 
   // Ask the host for a fresh session list on mount (covers deep links).
   useEffect(() => {
@@ -62,19 +64,25 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           </div>
         ) : null}
 
-        {items.map((item) =>
-          item.kind === "tool-call" ? (
-            <ToolCallCard key={item.group.key} group={item.group} />
-          ) : (
-            <EventLine key={item.entry.key} event={item.entry.event} />
-          ),
-        )}
+        {turns.map((turn) => (
+          <TurnBlock key={turn.key}>
+            {turn.items.map((item) =>
+              item.kind === "tool-call" ? (
+                <ToolCallCard key={item.group.key} group={item.group} />
+              ) : (
+                <EventLine key={item.entry.key} event={item.entry.event} />
+              ),
+            )}
+            {turn.open && streaming ? (
+              <StreamingBox model={session?.model} text={streaming} />
+            ) : null}
+          </TurnBlock>
+        ))}
 
-        {streaming ? (
-          <Card variant="outlined" className="whitespace-pre-wrap text-body text-neutral-100">
-            {streaming}
-            <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-neutral-400 align-middle" />
-          </Card>
+        {streaming && !lastTurnOpen ? (
+          <TurnBlock>
+            <StreamingBox model={session?.model} text={streaming} />
+          </TurnBlock>
         ) : null}
 
         {permission ? (
