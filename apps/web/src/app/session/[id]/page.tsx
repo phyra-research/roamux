@@ -4,6 +4,7 @@ import { AppHeader } from "@/components/app-header"
 import { DiffView } from "@/components/diff-view"
 import { EventLine } from "@/components/event-line"
 import { PermissionCard } from "@/components/permission-card"
+import { StatusStrip, deriveStatusStrip } from "@/components/status-strip"
 import { ToolCallCard, groupTimelineEntries } from "@/components/tool-call"
 import { StreamingBox, TurnBlock, groupIntoTurns } from "@/components/turn"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,10 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const items = useMemo(() => groupTimelineEntries(timeline, isRunning), [timeline, isRunning])
   const turns = useMemo(() => groupIntoTurns(items), [items])
   const lastTurnOpen = turns.length > 0 && (turns[turns.length - 1]?.open ?? false)
+  const statusState = useMemo(
+    () => deriveStatusStrip(timeline, items, turns, isRunning),
+    [timeline, items, turns, isRunning],
+  )
 
   // Ask the host for a fresh session list on mount (covers deep links).
   useEffect(() => {
@@ -54,6 +59,8 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         </div>
         <div className="text-caption text-neutral-500">{session?.model ?? "agent"}</div>
       </div>
+
+      <StatusStrip state={statusState} model={session?.model} streaming={streaming.length > 0} />
 
       <main className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         <DiffView sessionId={sessionId} />
