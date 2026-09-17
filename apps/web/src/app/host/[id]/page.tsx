@@ -2,12 +2,14 @@
 
 import { AppHeader } from "@/components/app-header"
 import { NewSession } from "@/components/new-session"
+import { Button } from "@/components/ui/button"
+import { ErrorCard } from "@/components/ui/error-card"
 import { useRelay } from "@/lib/relay-provider"
 import { useAuth } from "@/lib/use-auth"
 import { useHosts } from "@/lib/use-hosts"
 import { controlChannel } from "@openremote/protocol"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 
 /**
@@ -21,8 +23,12 @@ export default function HostPage() {
   const auth = useAuth()
   const router = useRouter()
   const { state, sendCommand, connectToHost } = useRelay()
-  const { hosts } = useHosts()
-  const [creating, setCreating] = useState(false)
+  const { hosts, refresh } = useHosts()
+  const searchParams = useSearchParams()
+  // The machines-list "+ New session" CTA links here with ?new=1 — it can't
+  // create inline (project/harness data needs a live connection), so this is
+  // how it hands off into the existing flow.
+  const [creating, setCreating] = useState(() => searchParams.get("new") === "1")
 
   const host = hosts.find((h) => h.id === hostId)
 
@@ -72,9 +78,12 @@ export default function HostPage() {
         </p>
 
         {host && host.status !== "online" && (
-          <div className="mb-4 rounded-xl border border-dashed border-ink-line px-4 py-4 text-sm text-neutral-500">
-            This machine is offline. Start it with{" "}
-            <code className="text-neutral-400">roamux host</code> to create or run sessions.
+          <div className="mb-4">
+            <ErrorCard
+              title="Machine unreachable"
+              description="This machine appears to be offline. Start it with `roamux host` on that computer to create or run sessions."
+              onRetry={refresh}
+            />
           </div>
         )}
 
@@ -95,13 +104,18 @@ export default function HostPage() {
 
         {creating && (
           <div className="mb-3">
-            <NewSession onClose={() => setCreating(false)} />
+            <NewSession hostId={hostId} onClose={() => setCreating(false)} />
           </div>
         )}
 
         {sessions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-ink-line px-4 py-8 text-center text-sm text-neutral-500">
-            No sessions yet on this machine.
+          <div className="space-y-3 rounded-xl border border-dashed border-ink-line px-4 py-8 text-center text-sm text-neutral-500">
+            <p>No sessions yet on this machine.</p>
+            {state.status === "connected" && !creating ? (
+              <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+                + New session
+              </Button>
+            ) : null}
           </div>
         ) : (
           <ul className="space-y-2">
