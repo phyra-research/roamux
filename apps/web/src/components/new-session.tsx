@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useRelay } from "@/lib/relay-provider"
 import { useEffect, useState } from "react"
 
@@ -59,18 +60,27 @@ export function NewSession({ onClose }: { onClose: () => void }) {
       </div>
 
       {!caps ? (
-        <div className="space-y-2 text-sm text-neutral-500">
-          <p>Loading projects…</p>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-9 w-full rounded-lg" />
+          </div>
+          <div className="space-y-1">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-9 w-full rounded-lg" />
+          </div>
+          <Skeleton className="h-20 w-full rounded-lg" />
+          <Skeleton className="h-11 w-full rounded-xl" />
           {/* Diagnostics: surface the live connection state so we can see where
               this is stuck (connecting vs connected-but-no-reply). */}
-          <p className="text-xs text-neutral-600">
+          <p className="text-caption text-neutral-600">
             connection: <span className="text-neutral-400">{state.status}</span> · machines:{" "}
             <span className="text-neutral-400">{state.hosts.length}</span>
           </p>
           <button
             type="button"
             onClick={() => sendCommand({ type: "projects.list" })}
-            className="rounded-lg border border-ink-line px-2.5 py-1 text-xs text-neutral-400"
+            className="rounded-lg border border-ink-line px-2.5 py-1 text-caption text-neutral-400"
           >
             Retry
           </button>

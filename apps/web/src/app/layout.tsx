@@ -1,4 +1,5 @@
 import { PwaRegistrar } from "@/components/pwa-registrar"
+import { ReconnectingBanner } from "@/components/reconnecting-banner"
 import { RelayProvider } from "@/lib/relay-provider"
 import type { Metadata, Viewport } from "next"
 import "./globals.css"
@@ -26,7 +27,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PwaRegistrar />
         <RelayProvider>
-          <div className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col">{children}</div>
+          <div className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col">
+            <ReconnectingBanner />
+            {children}
+          </div>
         </RelayProvider>
       </body>
     </html>
