@@ -4,10 +4,11 @@ import { AppHeader } from "@/components/app-header"
 import { DiffView } from "@/components/diff-view"
 import { EventLine } from "@/components/event-line"
 import { PermissionCard } from "@/components/permission-card"
+import { ToolCallCard, groupTimelineEntries } from "@/components/tool-call"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useRelay } from "@/lib/relay-provider"
-import { use, useEffect, useRef, useState } from "react"
+import { use, useEffect, useMemo, useRef, useState } from "react"
 
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -21,6 +22,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const streaming = state.streaming[sessionId] ?? ""
   const permission = state.permissions[sessionId]
   const isRunning = session?.status === "running" || streaming.length > 0
+  const items = useMemo(() => groupTimelineEntries(timeline, isRunning), [timeline, isRunning])
 
   // Ask the host for a fresh session list on mount (covers deep links).
   useEffect(() => {
@@ -60,9 +62,13 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
           </div>
         ) : null}
 
-        {timeline.map((entry) => (
-          <EventLine key={entry.key} event={entry.event} />
-        ))}
+        {items.map((item) =>
+          item.kind === "tool-call" ? (
+            <ToolCallCard key={item.group.key} group={item.group} />
+          ) : (
+            <EventLine key={item.entry.key} event={item.entry.event} />
+          ),
+        )}
 
         {streaming ? (
           <Card variant="outlined" className="whitespace-pre-wrap text-body text-neutral-100">
