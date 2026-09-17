@@ -8,8 +8,11 @@ import { StatusStrip, deriveStatusStrip } from "@/components/status-strip"
 import { ToolCallCard, groupTimelineEntries } from "@/components/tool-call"
 import { StreamingBox, TurnBlock, groupIntoTurns } from "@/components/turn"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useRelay } from "@/lib/relay-provider"
 import { use, useEffect, useMemo, useRef, useState } from "react"
+
+const SUGGESTED_PROMPT = "Read README.md and tell me what this project does"
 
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -30,6 +33,10 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     () => deriveStatusStrip(timeline, items, turns, isRunning),
     [timeline, items, turns, isRunning],
   )
+  // Distinguishes "still connecting/haven't heard about this session yet" from
+  // a genuinely empty timeline — otherwise a slow connection briefly shows
+  // "No activity yet" before the session data has even arrived.
+  const isLoadingSession = state.status !== "connected" || !session
 
   // Ask the host for a fresh session list on mount (covers deep links).
   useEffect(() => {
@@ -65,46 +72,59 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       <main className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         <DiffView sessionId={sessionId} />
 
-        {timeline.length === 0 && !streaming && !permission ? (
-          <div className="py-10 text-center text-body text-neutral-600">
-            No activity yet. Send an instruction below to get started.
+        {isLoadingSession ? (
+          <div className="space-y-3">
+            <Skeleton className="h-16 w-full rounded-2xl" />
+            <Skeleton className="ml-4 h-24 w-3/4 rounded-2xl" />
+            <Skeleton className="h-16 w-full rounded-2xl" />
+          </div>
+        ) : timeline.length === 0 && !streaming && !permission ? (
+          <div className="space-y-3 py-10 text-center">
+            <p className="text-body text-neutral-600">No activity yet.</p>
+            <Button variant="primary" size="sm" onClick={() => setText(SUGGESTED_PROMPT)}>
+              Try: “{SUGGESTED_PROMPT}”
+            </Button>
           </div>
         ) : null}
 
-        {turns.map((turn) => (
-          <TurnBlock key={turn.key}>
-            {turn.items.map((item) =>
-              item.kind === "tool-call" ? (
-                <ToolCallCard key={item.group.key} group={item.group} />
-              ) : (
-                <EventLine key={item.entry.key} event={item.entry.event} />
-              ),
-            )}
-            {turn.open && streaming ? (
-              <StreamingBox model={session?.model} text={streaming} />
+        {isLoadingSession ? null : (
+          <>
+            {turns.map((turn) => (
+              <TurnBlock key={turn.key}>
+                {turn.items.map((item) =>
+                  item.kind === "tool-call" ? (
+                    <ToolCallCard key={item.group.key} group={item.group} />
+                  ) : (
+                    <EventLine key={item.entry.key} event={item.entry.event} />
+                  ),
+                )}
+                {turn.open && streaming ? (
+                  <StreamingBox model={session?.model} text={streaming} />
+                ) : null}
+              </TurnBlock>
+            ))}
+
+            {streaming && !lastTurnOpen ? (
+              <TurnBlock>
+                <StreamingBox model={session?.model} text={streaming} />
+              </TurnBlock>
             ) : null}
-          </TurnBlock>
-        ))}
 
-        {streaming && !lastTurnOpen ? (
-          <TurnBlock>
-            <StreamingBox model={session?.model} text={streaming} />
-          </TurnBlock>
-        ) : null}
-
-        {permission ? (
-          <PermissionCard
-            permission={permission}
-            onRespond={(response) =>
-              sendCommand({
-                type: "permission.respond",
-                sessionId,
-                permissionId: permission.permissionId,
-                response,
-              })
-            }
-          />
-        ) : null}
+            {permission ? (
+              <PermissionCard
+                permission={permission}
+                onRespond={(response) =>
+                  sendCommand({
+                    type: "permission.respond",
+                    sessionId,
+                    permissionId: permission.permissionId,
+                    response,
+                  })
+                }
+              />
+            ) : null}
+          </>
+        )}
 
         <div ref={streamEndRef} />
       </main>
