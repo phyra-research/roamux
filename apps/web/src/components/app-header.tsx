@@ -2,6 +2,7 @@
 
 import { useRelay } from "@/lib/relay-provider"
 import Link from "next/link"
+import { GitHubStarButton } from "./github-star-button"
 import { StatusPill } from "./status-pill"
 import { UserMenu } from "./user-menu"
 
@@ -35,6 +36,7 @@ export function AppHeader({ back }: { back?: { href: string; label: string } }) 
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <GitHubStarButton />
           <StatusPill status={state.status} />
           <UserMenu />
         </div>
