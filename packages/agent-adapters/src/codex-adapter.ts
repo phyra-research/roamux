@@ -274,6 +274,12 @@ export class CodexAdapter implements HarnessAdapter {
           callId: item.id,
           output: item.aggregated_output ?? item.exit_code,
         })
+        // Surface file edits as file.changed so the UI renders a file-edit block
+        // (#94). Codex reports edits via file_change / patch_apply items carrying
+        // the affected path(s).
+        for (const path of filePathsFromCodexItem(item)) {
+          this.emit(rec.id, { type: "file.changed", path })
+        }
         return
       }
 
@@ -355,6 +361,26 @@ type CxItem = {
   aggregated_output?: string
   exit_code?: number
   status?: string
+  /** file_change / patch_apply: a single path, or a list of changed files. */
+  path?: string
+  changes?: { path?: string }[]
+}
+
+/**
+ * File path(s) a completed Codex item edits, or [] if it changed no files.
+ * Codex reports edits as a `file_change` / `patch_apply` item carrying either a
+ * single `path` or a `changes[]` list. Defensive about the exact shape so a
+ * schema tweak degrades to "no file.changed" rather than throwing.
+ */
+function filePathsFromCodexItem(item: CxItem): string[] {
+  const fileItem = item.type === "file_change" || item.type === "patch_apply"
+  if (!fileItem) return []
+  const paths: string[] = []
+  if (typeof item.path === "string" && item.path) paths.push(item.path)
+  for (const c of item.changes ?? []) {
+    if (typeof c?.path === "string" && c.path) paths.push(c.path)
+  }
+  return paths
 }
 
 type CxLine = {
