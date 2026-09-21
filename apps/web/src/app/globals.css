@@ -3,7 +3,16 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+}
+
+html {
+  /* Self-hosted via next/font in layout.tsx (--font-inter) — set directly
+     here rather than through a Tailwind font-sans utility: nothing in this
+     app set a font-family before this, so there's no existing font-sans
+     usage to hook into, and this guarantees every element inherits Inter
+     without relying on each component adding a utility class. */
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 html,
@@ -12,7 +21,7 @@ body {
 }
 
 body {
-  @apply bg-ink text-neutral-200 antialiased;
+  @apply bg-paper text-text antialiased;
   /* Respect mobile safe areas (notches / home indicators). */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -21,5 +30,5 @@ body {
 /* Thin, unobtrusive scrollbars for the event stream. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #3a3a42 transparent;
+  scrollbar-color: #4f7283 transparent;
 }
