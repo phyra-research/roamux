@@ -238,6 +238,12 @@ export class ClaudeCodeAdapter implements HarnessAdapter {
               callId: block.id,
               input: block.input,
             })
+            // Surface file edits as file.changed so the UI renders a file-edit
+            // block (#94). Claude's Edit/Write/MultiEdit carry the path(s) in the
+            // tool input; other adapters emit the same event.
+            for (const path of filePathsFromTool(block.name, block.input)) {
+              this.emit(sessionId, { type: "file.changed", path })
+            }
           }
         }
         return
@@ -331,6 +337,21 @@ function extractResultError(line: CcLine): string {
   if (typeof line.result === "string" && line.result) return line.result
   if (line.error) return line.error
   return line.subtype || "claude run failed"
+}
+
+/**
+ * File path(s) a Claude tool_use edits, or [] if it's not a file-writing tool.
+ * Edit/Write/NotebookEdit carry `file_path`; MultiEdit carries `file_path` too
+ * (one file, many edits). Defensive: any string `file_path`/`path` counts, so a
+ * future write-like tool still surfaces a file.changed.
+ */
+function filePathsFromTool(name: string | undefined, input: unknown): string[] {
+  const writeTools = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"])
+  if (!name || !writeTools.has(name)) return []
+  if (!input || typeof input !== "object") return []
+  const obj = input as Record<string, unknown>
+  const path = obj.file_path ?? obj.path
+  return typeof path === "string" && path.length > 0 ? [path] : []
 }
 
 // ── Minimal structural mirrors of the stream-json lines we touch ─────────────

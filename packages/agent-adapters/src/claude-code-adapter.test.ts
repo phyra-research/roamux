@@ -130,6 +130,44 @@ describe("ClaudeCodeAdapter.normalize", () => {
     await adapter.stop()
   })
 
+  test("Edit tool_use → tool.started AND file.changed (#94)", async () => {
+    const adapter = new ClaudeCodeAdapter()
+    feeder(adapter)(
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_2",
+              name: "Edit",
+              input: { file_path: "src/main.ts", old_string: "a", new_string: "b" },
+            },
+          ],
+        },
+      }),
+    )
+    const evs = await drain(adapter, 2)
+    expect(evs[0]?.event).toMatchObject({ type: "tool.started", tool: "Edit" })
+    expect(evs[1]?.event).toEqual({ type: "file.changed", path: "src/main.ts" })
+    await adapter.stop()
+  })
+
+  test("non-writing tool_use (Bash) emits NO file.changed (#94)", async () => {
+    const adapter = new ClaudeCodeAdapter()
+    feeder(adapter)(
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          content: [{ type: "tool_use", id: "toolu_3", name: "Bash", input: { command: "ls" } }],
+        },
+      }),
+    )
+    const evs = await drain(adapter, 3, 150)
+    expect(evs.map((e) => e.event.type)).toEqual(["tool.started"])
+    await adapter.stop()
+  })
+
   test("successful result → agent.completed", async () => {
     const adapter = new ClaudeCodeAdapter()
     feeder(adapter)(

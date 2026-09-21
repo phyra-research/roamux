@@ -151,6 +151,41 @@ describe("CodexAdapter.normalize", () => {
     await adapter.stop()
   })
 
+  test("file_change item.completed → tool.completed AND file.changed per path (#94)", async () => {
+    const adapter = new CodexAdapter()
+    feeder(adapter)(
+      JSON.stringify({
+        type: "item.completed",
+        item: {
+          id: "item_2",
+          type: "file_change",
+          changes: [{ path: "src/a.ts" }, { path: "src/b.ts" }],
+          status: "completed",
+        },
+      }),
+    )
+    const evs = await drain(adapter, 3)
+    expect(evs[0]?.event).toMatchObject({ type: "tool.completed", tool: "file_change" })
+    expect(evs.slice(1).map((e) => e.event)).toEqual([
+      { type: "file.changed", path: "src/a.ts" },
+      { type: "file.changed", path: "src/b.ts" },
+    ])
+    await adapter.stop()
+  })
+
+  test("command_execution emits NO file.changed (#94)", async () => {
+    const adapter = new CodexAdapter()
+    feeder(adapter)(
+      JSON.stringify({
+        type: "item.completed",
+        item: { id: "item_3", type: "command_execution", aggregated_output: "ok", exit_code: 0 },
+      }),
+    )
+    const evs = await drain(adapter, 2, 150)
+    expect(evs.map((e) => e.event.type)).toEqual(["tool.completed"])
+    await adapter.stop()
+  })
+
   test("turn.completed → agent.completed", async () => {
     const adapter = new CodexAdapter()
     feeder(adapter)(JSON.stringify({ type: "turn.completed", usage: {} }))
