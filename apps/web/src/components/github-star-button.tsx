@@ -39,7 +39,7 @@ export function GitHubStarButton() {
       href={REPO_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-caption text-neutral-400 transition-colors hover:text-accent-bright"
+      className="inline-flex items-center gap-1 text-caption text-text-muted transition-colors hover:text-accent-hover"
       aria-label="Star roamux on GitHub"
     >
       <GitHubMark className="h-4 w-4 shrink-0" />
