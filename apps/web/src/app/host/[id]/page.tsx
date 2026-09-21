@@ -104,7 +104,7 @@ export default function HostPage() {
 
         {creating && (
           <div className="mb-3">
-            <NewSession onClose={() => setCreating(false)} />
+            <NewSession hostId={hostId} onClose={() => setCreating(false)} />
           </div>
         )}
 
