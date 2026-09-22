@@ -43,20 +43,20 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="max-w-[10rem] truncate rounded-full border border-ink-line bg-ink-soft px-3 py-1 text-xs text-neutral-300"
+        className="max-w-[10rem] truncate rounded-full border border-paper-line bg-paper-surface px-3 py-1 text-caption text-text"
       >
         {label}
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-44 overflow-hidden rounded-xl border border-ink-line bg-ink-soft shadow-lg">
-          <div className="truncate border-b border-ink-line px-3 py-2 text-xs text-neutral-500">
+        <div className="absolute right-0 mt-1 w-44 overflow-hidden rounded-xl border border-paper-line bg-paper-surface shadow-lg">
+          <div className="truncate border-b border-paper-line px-3 py-2 text-caption text-text-muted">
             {label}
           </div>
           <button
             type="button"
             onClick={signOut}
             disabled={busy}
-            className="w-full px-3 py-2 text-left text-sm text-neutral-200 transition-colors hover:bg-ink-line disabled:opacity-50"
+            className="w-full px-3 py-2 text-left text-body text-text transition-colors hover:bg-accent/10 disabled:opacity-50"
           >
             {busy ? "Signing out…" : "Sign out"}
           </button>
