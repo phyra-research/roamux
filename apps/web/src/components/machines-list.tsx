@@ -30,7 +30,7 @@ export function MachinesList() {
   if (!signedIn) {
     return (
       <Empty>
-        <a href="/login" className="text-neutral-300 underline underline-offset-4">
+        <a href="/login" className="text-text underline underline-offset-4">
           Sign in
         </a>{" "}
         to see your machines.
@@ -42,7 +42,7 @@ export function MachinesList() {
       <ul className="space-y-2">
         {[0, 1, 2].map((i) => (
           <li key={i}>
-            <Card variant="outlined" className="flex items-center gap-3">
+            <Card variant="elevated" className="flex items-center gap-3">
               <div className="min-w-0 flex-1 space-y-2">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-3 w-20" />
@@ -87,7 +87,7 @@ export function MachinesList() {
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="w-full rounded-xl border border-dashed border-ink-line px-4 py-3 text-body text-neutral-400 transition-colors hover:text-neutral-200"
+          className="w-full rounded-xl border border-dashed border-paper-line px-4 py-3 text-body text-text-muted transition-colors hover:text-text"
         >
           + Add a machine
         </button>
@@ -119,7 +119,7 @@ function HostRow({
 
   return (
     <li>
-      <Card variant="outlined" className="space-y-3">
+      <Card variant="elevated" className="space-y-3">
         <div className="flex items-center gap-3">
           {editing ? (
             <input
@@ -137,19 +137,19 @@ function HostRow({
                 if (e.key === "Escape") setEditing(false)
               }}
               onBlur={(e) => commitRename(e.currentTarget.value)}
-              className="min-w-0 flex-1 rounded-lg border border-ink-line bg-ink px-2 py-1 text-body font-medium text-neutral-100 outline-none focus:border-neutral-500"
+              className="min-w-0 flex-1 rounded-lg border border-paper-line bg-paper px-2 py-1 text-body font-medium text-text outline-none focus:border-accent"
             />
           ) : (
             /* Tapping the machine opens its own sessions (per-host). */
             <Link href={`/host/${encodeURIComponent(host.id)}`} className="min-w-0 flex-1">
-              <div className="truncate text-title font-semibold text-neutral-100">{host.name}</div>
+              <div className="truncate text-title font-semibold text-text">{host.name}</div>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Badge status={online ? "online" : "offline"} />
-                <span className="text-caption text-neutral-500">
+                <span className="text-caption text-text-muted">
                   {relativeTime(host.lastSeenAt)}
                 </span>
                 {host.platform ? (
-                  <span className="text-caption text-neutral-500">· {host.platform}</span>
+                  <span className="text-caption text-text-muted">· {host.platform}</span>
                 ) : null}
               </div>
             </Link>
@@ -169,7 +169,7 @@ function HostRow({
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
-                  className="text-caption text-neutral-600 transition-colors hover:text-neutral-400"
+                  className="text-caption text-text-muted transition-colors hover:text-text"
                   aria-label="Rename machine"
                 >
                   ✎
@@ -177,7 +177,7 @@ function HostRow({
                 <button
                   type="button"
                   onClick={() => setConfirming(true)}
-                  className="text-caption text-neutral-600 transition-colors hover:text-neutral-400"
+                  className="text-caption text-text-muted transition-colors hover:text-text"
                   aria-label="Host options"
                 >
                   ⋯
@@ -223,7 +223,7 @@ function relativeTime(iso: string | null): string {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <Card variant="outlined" className="border-dashed py-8 text-center text-body text-neutral-500">
+    <Card variant="outlined" className="border-dashed py-8 text-center text-body text-text-muted">
       {children}
     </Card>
   )

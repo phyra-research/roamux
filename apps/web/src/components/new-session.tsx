@@ -78,7 +78,7 @@ export function NewSession({ hostId, onClose }: { hostId: string; onClose: () =>
   return (
     <Card variant="outlined" className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-title font-semibold text-neutral-100">New session</h3>
+        <h3 className="text-title font-semibold text-text">New session</h3>
         <Button variant="ghost" size="sm" onClick={onClose}>
           Cancel
         </Button>
@@ -98,20 +98,20 @@ export function NewSession({ hostId, onClose }: { hostId: string; onClose: () =>
           <Skeleton className="h-11 w-full rounded-xl" />
           {/* Diagnostics: surface the live connection state so we can see where
               this is stuck (connecting vs connected-but-no-reply). */}
-          <p className="text-caption text-neutral-600">
-            connection: <span className="text-neutral-400">{state.status}</span> · machines:{" "}
-            <span className="text-neutral-400">{state.hosts.length}</span>
+          <p className="text-caption text-text-muted">
+            connection: <span className="text-text-muted">{state.status}</span> · machines:{" "}
+            <span className="text-text-muted">{state.hosts.length}</span>
           </p>
           <button
             type="button"
             onClick={() => sendCommand({ type: "projects.list" })}
-            className="rounded-lg border border-ink-line px-2.5 py-1 text-caption text-neutral-400"
+            className="rounded-lg border border-paper-line px-2.5 py-1 text-caption text-text-muted transition-colors hover:text-text"
           >
             Retry
           </button>
         </div>
       ) : caps.projects.length === 0 || caps.harnesses.length === 0 ? (
-        <p className="text-body text-neutral-500">
+        <p className="text-body text-text-muted">
           No approved projects or installed agents on this host yet.
         </p>
       ) : (
@@ -128,7 +128,7 @@ export function NewSession({ hostId, onClose }: { hostId: string; onClose: () =>
             {caps.harnesses.length === 1 ? (
               // Nothing to choose — shown as the same "selected" chip an
               // OptionList would render, not a picker.
-              <div className="rounded-xl border border-accent-bright bg-accent/10 px-3 py-2.5 text-body text-neutral-100">
+              <div className="rounded-xl border border-accent bg-accent/10 px-3 py-2.5 text-body text-text">
                 {caps.harnesses[0].displayName}
               </div>
             ) : (
@@ -146,7 +146,7 @@ export function NewSession({ hostId, onClose }: { hostId: string; onClose: () =>
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="What should the agent do?"
               rows={3}
-              className="w-full resize-none rounded-lg border border-ink-line bg-black/30 px-3 py-2 text-body text-neutral-100 outline-none"
+              className="w-full resize-none rounded-lg border border-paper-line bg-paper px-3 py-2 text-body text-text outline-none focus:border-accent"
             />
           </Field>
 
@@ -168,7 +168,7 @@ export function NewSession({ hostId, onClose }: { hostId: string; onClose: () =>
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="block space-y-1.5">
-      <span className="text-caption uppercase tracking-wider text-neutral-500">{label}</span>
+      <span className="text-caption uppercase tracking-wider text-text-muted">{label}</span>
       {children}
     </div>
   )
@@ -201,8 +201,8 @@ function OptionList({
             className={cn(
               "w-full truncate rounded-xl border px-3 py-2.5 text-left text-body transition-colors",
               active
-                ? "border-accent-bright bg-accent/10 text-neutral-100"
-                : "border-ink-line bg-ink-soft text-neutral-300 active:bg-ink-line",
+                ? "border-accent bg-accent/10 text-text"
+                : "border-paper-line bg-paper text-text-muted active:bg-paper-line",
             )}
           >
             {opt.label}
