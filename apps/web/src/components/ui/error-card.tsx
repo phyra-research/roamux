@@ -17,11 +17,11 @@ export function ErrorCard({
   onRetry?: () => void
 }) {
   return (
-    <Card variant="outlined" className="space-y-2 border-red-500/30">
-      <div className="flex items-center gap-2 text-body font-medium text-red-400">
+    <Card variant="outlined" className="space-y-2 border-error/30">
+      <div className="flex items-center gap-2 text-body font-medium text-error">
         <span>✗</span> {title}
       </div>
-      {description ? <p className="text-caption text-neutral-500">{description}</p> : null}
+      {description ? <p className="text-caption text-text-muted">{description}</p> : null}
       {onRetry ? (
         <Button variant="secondary" size="sm" onClick={onRetry}>
           Retry

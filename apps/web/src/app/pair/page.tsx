@@ -18,7 +18,7 @@ function PairInner() {
   }, [params, pair, router])
 
   return (
-    <div className="flex flex-1 items-center justify-center px-6 text-sm text-neutral-400">
+    <div className="flex flex-1 items-center justify-center px-6 text-body text-text-muted">
       Pairing…
     </div>
   )
