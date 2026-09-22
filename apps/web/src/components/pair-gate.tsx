@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useRelay } from "@/lib/relay-provider"
 import { useState } from "react"
 
@@ -13,9 +14,9 @@ export function PairGate() {
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-lg font-semibold text-neutral-100">Pair a device</h1>
-      <p className="mt-2 max-w-xs text-sm text-neutral-400">
-        Run <code className="rounded bg-ink-soft px-1 py-0.5 text-neutral-300">roamux host</code> on
+      <h1 className="text-title font-semibold text-text">Pair a device</h1>
+      <p className="mt-2 max-w-xs text-body text-text-muted">
+        Run <code className="rounded bg-paper-surface px-1 py-0.5 text-text">roamux host</code> on
         your machine and paste the pairing token it prints.
       </p>
       <form
@@ -33,14 +34,11 @@ export function PairGate() {
           autoCorrect="off"
           spellCheck={false}
           placeholder="pairing token"
-          className="rounded-xl border border-ink-line bg-ink-soft px-4 py-3 text-center font-mono text-sm tracking-widest text-neutral-100 outline-none focus:border-neutral-500"
+          className="rounded-xl border border-paper-line bg-paper-surface px-4 py-3 text-center font-mono text-body tracking-widest text-text outline-none focus:border-accent"
         />
-        <button
-          type="submit"
-          className="rounded-xl bg-neutral-100 px-4 py-3 text-sm font-semibold text-ink transition-opacity active:opacity-80"
-        >
+        <Button type="submit" variant="primary">
           Pair
-        </button>
+        </Button>
       </form>
     </div>
   )

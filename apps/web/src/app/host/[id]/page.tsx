@@ -2,7 +2,9 @@
 
 import { AppHeader } from "@/components/app-header"
 import { NewSession } from "@/components/new-session"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { ErrorCard } from "@/components/ui/error-card"
 import { useRelay } from "@/lib/relay-provider"
 import { useAuth } from "@/lib/use-auth"
@@ -51,7 +53,7 @@ export default function HostPage() {
     return (
       <>
         <AppHeader back={{ href: "/", label: "Machines" }} />
-        <main className="flex flex-1 items-center justify-center px-6 text-sm text-neutral-500">
+        <main className="flex flex-1 items-center justify-center px-6 text-body text-text-muted">
           Loading…
         </main>
       </>
@@ -65,15 +67,11 @@ export default function HostPage() {
       <AppHeader back={{ href: "/", label: "Machines" }} />
       <main className="flex-1 px-4 py-5">
         <div className="mb-1 flex items-center gap-2">
-          <h1 className="text-base font-semibold text-neutral-100">{host?.name ?? "Machine"}</h1>
-          {host && (
-            <span
-              className={`h-2 w-2 rounded-full ${host.status === "online" ? "bg-emerald-400" : "bg-neutral-600"}`}
-            />
-          )}
+          <h1 className="text-title font-semibold text-text">{host?.name ?? "Machine"}</h1>
+          {host && <Badge status={host.status === "online" ? "online" : "offline"} />}
         </div>
-        <p className="mb-5 text-xs text-neutral-500">
-          {host ? `${host.status}${host.platform ? ` · ${host.platform}` : ""}` : ""}
+        <p className="mb-5 text-caption text-text-muted">
+          {host?.platform ?? ""}
           {state.status !== "connected" ? " · connecting…" : ""}
         </p>
 
@@ -88,14 +86,14 @@ export default function HostPage() {
         )}
 
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+          <h2 className="text-caption font-semibold uppercase tracking-widest text-text-muted">
             Sessions
           </h2>
           {state.status === "connected" && !creating && (
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="text-xs font-medium text-emerald-400"
+              className="text-caption font-medium text-accent"
             >
               + New
             </button>
@@ -109,26 +107,29 @@ export default function HostPage() {
         )}
 
         {sessions.length === 0 ? (
-          <div className="space-y-3 rounded-xl border border-dashed border-ink-line px-4 py-8 text-center text-sm text-neutral-500">
+          <Card
+            variant="outlined"
+            className="space-y-3 border-dashed py-8 text-center text-body text-text-muted"
+          >
             <p>No sessions yet on this machine.</p>
             {state.status === "connected" && !creating ? (
               <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
                 + New session
               </Button>
             ) : null}
-          </div>
+          </Card>
         ) : (
           <ul className="space-y-2">
             {sessions.map((s) => (
               <li key={s.id}>
                 <Link
                   href={`/session/${encodeURIComponent(s.id)}`}
-                  className="block rounded-xl border border-ink-line bg-ink-soft px-4 py-3 transition-colors active:bg-ink-line"
+                  className="block rounded-2xl border border-paper-line/60 bg-paper-surface px-4 py-3 shadow-md shadow-text/10 transition-colors active:bg-paper-line"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-neutral-100">{s.title}</div>
-                      <div className="truncate text-xs text-neutral-500">
+                      <div className="truncate text-body font-medium text-text">{s.title}</div>
+                      <div className="truncate text-caption text-text-muted">
                         {s.model ?? "agent"}
                         {s.projectPath ? ` · ${s.projectPath}` : ""}
                       </div>
@@ -146,11 +147,15 @@ export default function HostPage() {
 }
 
 function SessionBadge({ status }: { status: string }) {
+  // "running" reuses `accent` (the live/nav-indicator color), matching
+  // ui/badge.tsx's own rule — not a new color for the same semantic.
   const map: Record<string, string> = {
-    idle: "text-neutral-500",
-    running: "text-emerald-400",
-    waiting: "text-amber-400",
-    error: "text-red-400",
+    idle: "text-text-muted",
+    running: "text-accent",
+    waiting: "text-warning",
+    error: "text-error",
   }
-  return <span className={`shrink-0 text-xs ${map[status] ?? "text-neutral-500"}`}>{status}</span>
+  return (
+    <span className={`shrink-0 text-caption ${map[status] ?? "text-text-muted"}`}>{status}</span>
+  )
 }
