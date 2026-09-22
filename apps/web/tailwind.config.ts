@@ -1,24 +1,51 @@
 import type { Config } from "tailwindcss"
 
 // ---------------------------------------------------------------------------
-// Design tokens (issue #82) — the one place accent color and type scale are
-// defined. Don't hardcode hex codes or one-off font sizes in components;
+// Design tokens (issue #103 — phyra.ai light theme; supersedes the dark
+// `ink`/indigo palette from #82). Don't hardcode hex codes in components;
 // reference these via Tailwind classes (`bg-accent`, `text-title`, etc).
 //
-// Accent color — indigo. Two shades, NOT interchangeable:
-//   accent (#6366F1, indigo-500) — non-text UI only: borders, focus rings,
-//     indicator dots, low-opacity tints (bg-accent/10). Contrast vs `ink`
-//     background is 4.43:1 — clears the 3:1 bar for UI components/large
-//     graphics but FAILS the 4.5:1 bar for normal text, with either dark or
-//     white text on top. Never use for text or as a text-bearing button fill.
-//   accent-bright (#818CF8, indigo-400) — the AA-safe shade. Contrast vs
-//     `ink` is 6.63:1 with dark (`text-ink`) text or as accent-colored text
-//     directly on the dark background. Use for: primary button fills (paired
-//     with `text-ink`, never white — white-on-bright is only 2.98:1), any
-//     accent-colored text/links/live-labels, and hover/active dimming should
-//     use opacity, not a swap to `accent` (which is less contrasty).
+// `ink` is fully retired, not reused for the new text color — reusing the
+// same key name for a different role (bg family → text family) would mean
+// every not-yet-migrated `bg-ink` usage silently renders as deep-blue
+// instead of missing, which is worse than an honest gap while #104-107
+// migrate each screen. `paper` (bg family) and `text` (foreground family)
+// are new names; unmigrated components will render with missing styling
+// until those follow-ups land — a known, accepted consequence of this
+// sequencing, not a bug in this commit.
+//
 // Ratios computed via the standard WCAG relative-luminance formula against
-// this file's `ink` (#0a0a0b) background.
+// `paper` (#FAF1CA), this theme's page background.
+//
+//   paper.DEFAULT  #FAF1CA — page background.
+//   paper.surface  #F2E4AC — card/surface background, distinct from the
+//     page for separation (still warm-cream, not a jump to white).
+//   paper.line     #CED0B8 — border. Computed as `text` blended at 18% over
+//     paper (a fixed value, not a runtime opacity — matches how `ink.line`
+//     worked in the dark theme).
+//   text.DEFAULT   #053C65 — body text. 10.05:1 on paper.
+//   text.muted     #4F7283 — de-emphasized text. `text` blended at 70% over
+//     paper = 4.54:1, clearing the 4.5:1 normal-text bar for ALL text sizes.
+//     The issue's own suggested ~65% only reaches 3.98:1 (short of 4.5,
+//     though it clears the 3:1 large-text/UI bar) — verified, not assumed,
+//     and bumped to 70% so `text-muted` needs no size restriction, the same
+//     move #82 made when `accent` DEFAULT fell short in the dark theme.
+//   accent.DEFAULT #053C65 — nav/primary-action fill. Cream text on it is
+//     10.05:1 (same value as `text`, shared brand color, distinct semantic
+//     role — not a duplication bug).
+//   accent.hover   #042E4E — darker, for hover/press. 12.28:1 with cream
+//     text (vs 10.05 resting) — unlike the dark theme, `accent` DEFAULT
+//     already clears AA everywhere here, so this shade exists purely for
+//     interaction feedback, not compliance.
+//   success        #047857 (emerald-700) — 4.83:1 on paper. emerald-600
+//     only reaches 3.32:1, too low for text.
+//   error          #B91C1C (red-700) — 5.70:1 on paper.
+//   warning        #92400E (amber-800) — 6.25:1 on paper. amber-700 falls
+//     just short at 4.42:1.
+//   "running"/live-indicator states reuse `accent`, not a new color — same
+//     precedent as the dark theme (#82 explicitly allowed accent for
+//     "live/running indicators"), and the design principle here still says
+//     deep blue owns nav/live state.
 //
 // Type scale — 4 semantic sizes, additive to Tailwind's default scale
 // (text-xs/text-sm/etc still work; these are named aliases for consistency):
@@ -32,16 +59,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        // A calm, neutral control-surface palette.
-        ink: {
-          DEFAULT: "#0a0a0b",
-          soft: "#131316",
-          line: "#26262b",
+        paper: {
+          DEFAULT: "#FAF1CA",
+          surface: "#F2E4AC",
+          line: "#CED0B8",
+        },
+        text: {
+          DEFAULT: "#053C65",
+          muted: "#4F7283",
         },
         accent: {
-          DEFAULT: "#6366F1",
-          bright: "#818CF8",
+          DEFAULT: "#053C65",
+          hover: "#042E4E",
         },
+        success: "#047857",
+        error: "#B91C1C",
+        warning: "#92400E",
       },
       fontSize: {
         caption: ["0.75rem", { lineHeight: "1rem" }],

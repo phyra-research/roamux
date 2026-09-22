@@ -4,8 +4,8 @@
   "description": "Remote control plane for local AI coding agents",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0b",
-  "theme_color": "#0a0a0b",
+  "background_color": "#FAF1CA",
+  "theme_color": "#FAF1CA",
   "icons": [
     {
       "src": "/icons/icon-192.png",
