@@ -47,6 +47,20 @@ import type { Config } from "tailwindcss"
 //     "live/running indicators"), and the design principle here still says
 //     deep blue owns nav/live state.
 //
+// success.tint / error.tint (#105) — soft backgrounds for diff added/
+//   removed LINES specifically (not badges/pills — those use the solid
+//   `success`/`error` fills above; a tint's contrast depends on what's
+//   behind it, and these are verified only against `paper`, the code-block
+//   background, not `paper-surface`). Pre-computed low-alpha blends, not a
+//   runtime `/N` opacity modifier: `success`/`error` text stays readable
+//   against them specifically because the alpha was chosen for that —
+//   raising it further would REDUCE contrast (the tint converges toward
+//   the text color, not away from it).
+//   success.tint  #F0ECC5 — success blended 4% over paper. success text
+//     on it: 4.57:1. (10% only reaches 4.22:1 — short of 4.5.)
+//   error.tint    #F5E0BC — error blended 8% over paper. error text
+//     on it: 5.01:1.
+//
 // Type scale — 4 semantic sizes, additive to Tailwind's default scale
 // (text-xs/text-sm/etc still work; these are named aliases for consistency):
 //   caption (12px/16px) — meta, timestamps, secondary labels
@@ -72,8 +86,14 @@ export default {
           DEFAULT: "#053C65",
           hover: "#042E4E",
         },
-        success: "#047857",
-        error: "#B91C1C",
+        success: {
+          DEFAULT: "#047857",
+          tint: "#F0ECC5",
+        },
+        error: {
+          DEFAULT: "#B91C1C",
+          tint: "#F5E0BC",
+        },
         warning: "#92400E",
       },
       fontSize: {

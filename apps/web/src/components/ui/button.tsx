@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn"
 import { type ButtonHTMLAttributes, forwardRef } from "react"
 
-export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost"
+export type ButtonVariant = "primary" | "secondary" | "danger" | "success" | "ghost"
 export type ButtonSize = "sm" | "md"
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -10,16 +10,23 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
 }
 
-// `primary` uses accent-bright, not accent DEFAULT — DEFAULT (#6366F1) only
-// clears 4.43:1 against the dark background, short of the 4.5:1 text bar.
-// accent-bright (#818CF8) clears 6.63:1 with dark (text-ink) text. Hover/
-// active dim via opacity rather than swapping to a less-contrasty color.
+// `primary`/`success` are solid fills with cream (`paper`) text — accent
+// 10.05:1, success 4.83:1, both container-independent. Hover swaps to the
+// darker `accent-hover` (12.28:1) rather than opacity-dimming: unlike the
+// dark theme, `accent` DEFAULT already clears AA everywhere here, so a
+// second shade exists purely for interaction feedback (#103).
+// `danger` is bordered/outlined, not a tinted fill: a tint's contrast
+// depends on the background behind it, and nested inside a Card (`paper-
+// surface`), a `bg-error/10` fill falls to 4.34:1 — short of 4.5. Border +
+// text color are both solid `error` (5.70:1), so it's compliant regardless
+// of what it's sitting on.
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: "bg-accent-bright text-ink hover:opacity-90 active:opacity-80",
+  primary: "bg-accent text-paper hover:bg-accent-hover active:opacity-80",
   secondary:
-    "border border-ink-line bg-ink-soft text-neutral-100 hover:border-neutral-500 active:bg-ink-line",
-  danger: "bg-red-500/10 text-red-400 hover:bg-red-500/20 active:bg-red-500/25",
-  ghost: "text-neutral-400 hover:text-neutral-100 active:text-neutral-200",
+    "border border-paper-line bg-paper-surface text-text hover:border-accent active:bg-paper-line",
+  danger: "border border-error text-error hover:bg-error/10 active:bg-error/20",
+  success: "bg-success text-paper hover:opacity-90 active:opacity-80",
+  ghost: "text-text-muted hover:text-text active:text-text",
 }
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

@@ -52,13 +52,13 @@ function respondingLabel(model: string | undefined): string {
 export function StreamingBox({ model, text }: { model: string | undefined; text: string }) {
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-1.5 text-caption uppercase tracking-wider text-neutral-500">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent-bright animate-pulse" />
+      <div className="flex items-center gap-1.5 text-caption uppercase tracking-wider text-text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
         {respondingLabel(model)}
       </div>
-      <div className="whitespace-pre-wrap text-body leading-relaxed text-neutral-300">
+      <div className="whitespace-pre-wrap text-body leading-relaxed text-text">
         {text}
-        <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-neutral-400 align-middle" />
+        <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-text-muted align-middle" />
       </div>
     </div>
   )
@@ -71,5 +71,5 @@ export function StreamingBox({ model, text }: { model: string | undefined; text:
  * a semantic outcome, so per the design principle it stays uncolored.
  */
 export function TurnBlock({ children }: { children: ReactNode }) {
-  return <div className="space-y-2 border-l-2 border-ink-line pl-3">{children}</div>
+  return <div className="space-y-2 border-l-2 border-paper-line pl-3">{children}</div>
 }
