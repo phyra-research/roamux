@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useSearchParams } from "next/navigation"
 import { Suspense, useState } from "react"
 
@@ -34,14 +35,14 @@ function LinkInner() {
     <main className="flex flex-1 flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-6 text-center">
         <div>
-          <h1 className="text-lg font-semibold text-neutral-100">Link a device</h1>
-          <p className="mt-1 text-sm text-neutral-500">
+          <h1 className="text-title font-semibold text-text">Link a device</h1>
+          <p className="mt-1 text-body text-text-muted">
             Enter the code shown in your terminal to connect that machine.
           </p>
         </div>
 
         {state === "done" ? (
-          <p className="text-sm text-emerald-400">{message}</p>
+          <p className="text-body text-success">{message}</p>
         ) : (
           <>
             <input
@@ -49,17 +50,18 @@ function LinkInner() {
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="WXYZ-1234"
               autoCapitalize="characters"
-              className="w-full rounded-xl border border-ink-line bg-ink-soft px-4 py-3 text-center font-mono text-lg tracking-widest text-neutral-100 outline-none focus:border-neutral-500"
+              className="w-full rounded-xl border border-paper-line bg-paper-surface px-4 py-3 text-center font-mono text-lg tracking-widest text-text outline-none focus:border-accent"
             />
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              className="w-full"
               onClick={approve}
-              disabled={state === "busy" || code.trim().length < 4}
-              className="w-full rounded-xl border border-ink-line bg-ink-soft px-4 py-3 text-sm font-medium text-neutral-100 transition-colors active:bg-ink-line disabled:opacity-50"
+              disabled={code.trim().length < 4}
+              loading={state === "busy"}
             >
               {state === "busy" ? "Linking…" : "Approve"}
-            </button>
-            {message && <p className="text-sm text-red-400">{message}</p>}
+            </Button>
+            {message && <p className="text-body text-error">{message}</p>}
           </>
         )}
       </div>

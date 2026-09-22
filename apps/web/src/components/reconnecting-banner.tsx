@@ -20,8 +20,8 @@ export function ReconnectingBanner() {
   if (state.status !== "connecting" || !everConnected.current) return null
 
   return (
-    <div className="flex items-center justify-center gap-2 border-b border-ink-line bg-ink-soft px-4 py-1.5 text-caption text-neutral-400">
-      <span className="h-1.5 w-1.5 rounded-full bg-accent-bright animate-pulse" />
+    <div className="flex items-center justify-center gap-2 border-b border-paper-line bg-paper-surface px-4 py-1.5 text-caption text-text-muted">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
       Reconnecting…
     </div>
   )
