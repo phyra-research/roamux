@@ -24,44 +24,44 @@ export function DiffView({ sessionId }: { sessionId: string }) {
   const totalDel = files.reduce((n, f) => n + f.deletions, 0)
 
   return (
-    <section className="rounded-xl border border-ink-line bg-ink-soft">
+    <section className="rounded-xl border border-paper-line bg-paper-surface">
       <button
         type="button"
         onClick={toggle}
         className="flex w-full items-center justify-between px-3 py-2 text-left"
         aria-expanded={open}
       >
-        <span className="text-sm font-medium text-neutral-200">
+        <span className="text-body font-medium text-text">
           Changes{hasLoaded && !error ? ` · ${files.length}` : ""}
         </span>
-        <span className="flex items-center gap-2 text-xs">
+        <span className="flex items-center gap-2 text-caption">
           {hasLoaded && !error && files.length > 0 ? (
             <span className="font-mono">
-              <span className="text-emerald-400">+{totalAdd}</span>{" "}
-              <span className="text-red-400">−{totalDel}</span>
+              <span className="text-success">+{totalAdd}</span>{" "}
+              <span className="text-error">−{totalDel}</span>
             </span>
           ) : null}
-          <span className="text-neutral-500">{open ? "▾" : "▸"}</span>
+          <span className="text-text-muted">{open ? "▾" : "▸"}</span>
         </span>
       </button>
 
       {open ? (
-        <div className="border-t border-ink-line px-3 py-2">
+        <div className="border-t border-paper-line px-3 py-2">
           {hasLoaded && !error ? (
-            <p className="pb-2 text-[11px] text-neutral-600">
+            <p className="pb-2 text-caption text-text-muted">
               Uncommitted changes in this project (working tree vs. last commit).
             </p>
           ) : null}
           {loading && !hasLoaded ? (
-            <p className="py-2 text-xs text-neutral-500">Loading changes…</p>
+            <p className="py-2 text-caption text-text-muted">Loading changes…</p>
           ) : error ? (
             <div className="space-y-2 py-1">
-              <p className="text-xs text-red-400">{error}</p>
+              <p className="text-caption text-error">{error}</p>
               <RefreshButton onClick={request} loading={loading} connected={connected} />
             </div>
           ) : files.length === 0 ? (
             <div className="space-y-2 py-1">
-              <p className="py-2 text-xs text-neutral-500">No uncommitted changes.</p>
+              <p className="py-2 text-caption text-text-muted">No uncommitted changes.</p>
               <RefreshButton onClick={request} loading={loading} connected={connected} />
             </div>
           ) : (
@@ -94,23 +94,26 @@ function RefreshButton({
       type="button"
       onClick={onClick}
       disabled={loading || !connected}
-      className="text-xs text-neutral-500 underline underline-offset-2 disabled:no-underline disabled:opacity-50"
+      className="text-caption text-text-muted underline underline-offset-2 disabled:no-underline disabled:opacity-50"
     >
       {loading ? "Refreshing…" : !connected ? "Disconnected" : "Refresh"}
     </button>
   )
 }
 
+// Non-text UI (status dots, 3:1 bar) — `modified` is neutral, not amber,
+// per the design principle: green/red carry semantic meaning only, and a
+// modified file isn't a warning.
 const STATUS_DOT: Record<ChangedFile["status"], string> = {
-  added: "bg-emerald-400",
-  modified: "bg-amber-400",
-  deleted: "bg-red-400",
+  added: "bg-success",
+  modified: "bg-text-muted",
+  deleted: "bg-error",
 }
 
 function FileRow({ file }: { file: ChangedFile }) {
   const [open, setOpen] = useState(false)
   return (
-    <li className="overflow-hidden rounded-lg border border-ink-line">
+    <li className="overflow-hidden rounded-lg border border-paper-line">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -118,12 +121,12 @@ function FileRow({ file }: { file: ChangedFile }) {
         aria-expanded={open}
       >
         <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[file.status]}`} />
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-neutral-200">
+        <span className="min-w-0 flex-1 truncate font-mono text-caption text-text">
           {file.path}
         </span>
-        <span className="shrink-0 font-mono text-[11px]">
-          <span className="text-emerald-400">+{file.additions}</span>{" "}
-          <span className="text-red-400">−{file.deletions}</span>
+        <span className="shrink-0 font-mono text-caption">
+          <span className="text-success">+{file.additions}</span>{" "}
+          <span className="text-error">−{file.deletions}</span>
         </span>
       </button>
       {open ? <Patch text={file.patch} /> : null}
@@ -131,25 +134,30 @@ function FileRow({ file }: { file: ChangedFile }) {
   )
 }
 
+// Diff lines get a soft background tint, not just colored text — the
+// `success`/`error` .tint tokens (tailwind.config.ts) are pre-computed at a
+// low enough alpha to keep this text ≥4.5:1 against `paper` specifically
+// (the code-block background below), which a naive `/10` opacity modifier
+// doesn't reliably clear (see #105's contrast verification).
 function lineClass(line: string): string {
-  if (line.startsWith("@@")) return "text-sky-400"
-  if (line.startsWith("+")) return "text-emerald-300"
-  if (line.startsWith("-")) return "text-red-300"
-  if (line.startsWith("\\")) return "text-neutral-600"
-  return "text-neutral-400"
+  if (line.startsWith("@@")) return "bg-accent/5 text-accent"
+  if (line.startsWith("+")) return "bg-success-tint text-success"
+  if (line.startsWith("-")) return "bg-error-tint text-error"
+  if (line.startsWith("\\")) return "text-text-muted"
+  return "text-text"
 }
 
 function Patch({ text }: { text: string }) {
   if (!text.trim()) {
-    return <p className="px-2.5 py-2 text-[11px] text-neutral-600">(no textual diff)</p>
+    return <p className="px-2.5 py-2 text-caption text-text-muted">(no textual diff)</p>
   }
   // Drop the trailing "" from the final newline so we don't render a blank row.
   const lines = text.replace(/\n$/, "").split("\n")
   return (
-    <pre className="overflow-x-auto border-t border-ink-line bg-ink px-2.5 py-2 text-[11px] leading-relaxed">
+    <pre className="overflow-x-auto border-t border-paper-line bg-paper px-2.5 py-2 text-caption leading-relaxed">
       {lines.map((line, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: patch lines are static + order-stable
-        <div key={i} className={`whitespace-pre font-mono ${lineClass(line)}`}>
+        <div key={i} className={`whitespace-pre px-1 font-mono ${lineClass(line)}`}>
           {line || " "}
         </div>
       ))}

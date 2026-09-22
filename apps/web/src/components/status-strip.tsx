@@ -136,21 +136,21 @@ export function StatusStrip({
 
   if (state.phase === "idle") {
     return (
-      <div className="border-b border-ink-line px-4 py-2">
+      <div className="border-b border-paper-line px-4 py-2">
         <Badge status="offline">Ready to start</Badge>
       </div>
     )
   }
   if (state.phase === "done") {
     return (
-      <div className="border-b border-ink-line px-4 py-2">
+      <div className="border-b border-paper-line px-4 py-2">
         <Badge status="done">✓ Done</Badge>
       </div>
     )
   }
   if (state.phase === "failed") {
     return (
-      <div className="border-b border-ink-line px-4 py-2">
+      <div className="border-b border-paper-line px-4 py-2">
         <Badge status="failed">✗ Failed</Badge>
       </div>
     )
@@ -165,9 +165,9 @@ export function StatusStrip({
       : "Working…"
 
   return (
-    <div className="flex items-center gap-2 border-b border-ink-line px-4 py-2">
+    <div className="flex items-center gap-2 border-b border-paper-line px-4 py-2">
       <Badge status="running">Running</Badge>
-      <span className="min-w-0 flex-1 truncate text-caption text-neutral-400">
+      <span className="min-w-0 flex-1 truncate text-caption text-text-muted">
         {description} · {elapsed}
       </span>
     </div>

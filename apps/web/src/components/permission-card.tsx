@@ -1,11 +1,19 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import type { PendingPermission } from "@/lib/types"
 
 /**
  * The headline product feature: a remote allow/deny prompt. When the agent
  * requests permission, this card appears and the two buttons send a
  * permission.respond command back through the relay to the host.
+ *
+ * Not built on the shared <Card> primitive: Card's own variant classes set
+ * border-color and background, and this needs a warning-tinted border/bg
+ * instead — overriding via className isn't reliable (conflicting Tailwind
+ * utilities resolve by generated-stylesheet order, not by prop order, per
+ * cn.ts's own documented caveat), so this matches Card's shape constants
+ * (rounded-2xl px-4 py-3) directly rather than risk the override.
  */
 export function PermissionCard({
   permission,
@@ -15,29 +23,21 @@ export function PermissionCard({
   onRespond: (response: "allow" | "deny") => void
 }) {
   return (
-    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
-      <div className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+    <div className="space-y-3 rounded-2xl border border-warning/40 bg-warning/5 px-4 py-3">
+      <div className="flex items-center gap-2 text-body font-semibold text-warning">
         <span>⚠</span> Permission required
       </div>
-      <p className="mt-2 font-mono text-sm text-neutral-100">{permission.description}</p>
+      <p className="font-mono text-body text-text">{permission.description}</p>
       {permission.tool ? (
-        <p className="mt-1 text-xs text-neutral-500">tool: {permission.tool}</p>
+        <p className="text-caption text-text-muted">tool: {permission.tool}</p>
       ) : null}
-      <div className="mt-4 flex gap-2">
-        <button
-          type="button"
-          onClick={() => onRespond("deny")}
-          className="flex-1 rounded-xl border border-ink-line px-4 py-2.5 text-sm font-medium text-neutral-200 active:bg-ink-line"
-        >
+      <div className="flex gap-2">
+        <Button variant="danger" className="flex-1" onClick={() => onRespond("deny")}>
           Deny
-        </button>
-        <button
-          type="button"
-          onClick={() => onRespond("allow")}
-          className="flex-1 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-ink active:opacity-80"
-        >
+        </Button>
+        <Button variant="success" className="flex-1" onClick={() => onRespond("allow")}>
           Allow
-        </button>
+        </Button>
       </div>
     </div>
   )

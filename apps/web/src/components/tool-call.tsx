@@ -152,10 +152,8 @@ export function ToolCallCard({ group }: { group: ToolCallGroup }) {
     <Card variant="elevated" className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-title font-semibold text-neutral-100">
-            {toolLabel(group.tool)}
-          </div>
-          {arg ? <div className="truncate text-caption text-neutral-500">{arg}</div> : null}
+          <div className="truncate text-title font-semibold text-text">{toolLabel(group.tool)}</div>
+          {arg ? <div className="truncate text-caption text-text-muted">{arg}</div> : null}
         </div>
         <StatusIndicator group={group} />
       </div>
@@ -163,25 +161,28 @@ export function ToolCallCard({ group }: { group: ToolCallGroup }) {
       {content ? (
         long && !expanded ? (
           <div>
-            <p className="truncate font-mono text-caption text-neutral-400">{preview}</p>
+            <p className="truncate font-mono text-caption text-text-muted">{preview}</p>
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="mt-1 text-caption font-medium text-accent-bright"
+              className="mt-1 text-caption font-medium text-accent transition-colors hover:text-accent-hover"
             >
               Show more
             </button>
           </div>
         ) : (
           <div>
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-black/40 px-3 py-2 font-mono text-caption text-neutral-300">
+            {/* Inset code-block style (#105): light block with a subtle
+                border, applied consistently with event-line.tsx's
+                terminal.output. */}
+            <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-paper-line bg-paper px-3 py-2 font-mono text-caption text-text">
               {content}
             </pre>
             {long ? (
               <button
                 type="button"
                 onClick={() => setExpanded(false)}
-                className="mt-1 text-caption font-medium text-accent-bright"
+                className="mt-1 text-caption font-medium text-accent transition-colors hover:text-accent-hover"
               >
                 Show less
               </button>
@@ -197,7 +198,7 @@ function StatusIndicator({ group }: { group: ToolCallGroup }) {
   if (group.status === "running") {
     return (
       <span
-        className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-accent-bright border-t-transparent"
+        className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-accent border-t-transparent"
         aria-label="Running"
       />
     )

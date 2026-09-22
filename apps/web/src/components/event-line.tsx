@@ -7,21 +7,22 @@ export function EventLine({ event }: { event: AgentEvent }) {
     case "session.started":
       return <Meta text="Session started" />
     case "terminal.output":
+      // Inset code-block style (#105): light block with a subtle border,
+      // matching the paper theme, rather than a dark-mode inset — applied
+      // consistently with tool-call.tsx's verbose-output block.
       return (
-        <pre className="overflow-x-auto rounded-lg bg-black/40 px-3 py-2 font-mono text-caption text-neutral-300">
+        <pre className="overflow-x-auto rounded-lg border border-paper-line bg-paper px-3 py-2 font-mono text-caption text-text">
           {event.text}
         </pre>
       )
     case "file.changed":
-      return <div className="font-mono text-caption text-neutral-500">± {event.path}</div>
+      return <div className="font-mono text-caption text-text-muted">± {event.path}</div>
     case "assistant.message":
-      // Prominent main content: unboxed, brighter, relaxed line-height — the
-      // one role with no card/border, so it's what reads as "the point" amid
-      // everything else on the page being boxed or muted.
+      // Prominent main content: unboxed, deep-blue, relaxed line-height —
+      // the one role with no card/border, so it's what reads as "the point"
+      // amid everything else on the page being boxed or muted.
       return (
-        <div className="whitespace-pre-wrap text-body leading-relaxed text-neutral-50">
-          {event.text}
-        </div>
+        <div className="whitespace-pre-wrap text-body leading-relaxed text-text">{event.text}</div>
       )
     case "permission.resolved":
       return <Meta text={`Permission ${event.response === "allow" ? "allowed" : "denied"}`} />
@@ -50,5 +51,5 @@ export function EventLine({ event }: { event: AgentEvent }) {
 }
 
 function Meta({ text }: { text: string }) {
-  return <div className="text-caption uppercase tracking-wider text-neutral-600">{text}</div>
+  return <div className="text-caption uppercase tracking-wider text-text-muted">{text}</div>
 }

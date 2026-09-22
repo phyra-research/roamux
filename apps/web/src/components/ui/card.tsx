@@ -8,8 +8,8 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const VARIANT_CLASSES: Record<CardVariant, string> = {
-  outlined: "border border-ink-line bg-ink-soft",
-  elevated: "border border-ink-line/60 bg-ink-soft shadow-lg shadow-black/30",
+  outlined: "border border-paper-line bg-paper-surface",
+  elevated: "border border-paper-line/60 bg-paper-surface shadow-md shadow-text/10",
 }
 
 export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
