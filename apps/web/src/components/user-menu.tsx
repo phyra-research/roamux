@@ -1,5 +1,10 @@
 "use client"
 
+import {
+  isSoundEnabled,
+  requestNotificationPermissionIfNeeded,
+  setSoundEnabled,
+} from "@/lib/notify"
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser"
 import { useAuth } from "@/lib/use-auth"
 import { useRouter } from "next/navigation"
@@ -14,6 +19,9 @@ export function UserMenu() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Lazy init reads localStorage once on mount — avoids a hydration
+  // mismatch from reading it during render on the server.
+  const [soundEnabled, setSoundEnabledState] = useState(() => isSoundEnabled())
   const ref = useRef<HTMLDivElement>(null)
 
   // Close on outside click.
@@ -52,6 +60,22 @@ export function UserMenu() {
           <div className="truncate border-b border-paper-line px-3 py-2 text-caption text-text-muted">
             {label}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !soundEnabled
+              setSoundEnabledState(next)
+              setSoundEnabled(next)
+              // Only a real toggle-on click asks — never proactively on load.
+              if (next) void requestNotificationPermissionIfNeeded()
+            }}
+            className="flex w-full items-center justify-between border-b border-paper-line px-3 py-2 text-left text-body text-text transition-colors hover:bg-accent/10"
+          >
+            <span>Sound alerts</span>
+            <span className={soundEnabled ? "text-success" : "text-text-muted"}>
+              {soundEnabled ? "On" : "Off"}
+            </span>
+          </button>
           <button
             type="button"
             onClick={signOut}
