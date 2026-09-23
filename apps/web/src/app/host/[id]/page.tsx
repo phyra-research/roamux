@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ErrorCard } from "@/components/ui/error-card"
+import { type SessionPhase, deriveSessionPhase } from "@/lib/notify"
 import { useRelay } from "@/lib/relay-provider"
 import { useAuth } from "@/lib/use-auth"
 import { useHosts } from "@/lib/use-hosts"
@@ -134,7 +135,9 @@ export default function HostPage() {
                         {s.projectPath ? ` · ${s.projectPath}` : ""}
                       </div>
                     </div>
-                    <SessionBadge status={s.status} />
+                    <SessionPhaseIndicator
+                      phase={deriveSessionPhase(s.status, state.timelines[s.id] ?? [])}
+                    />
                   </div>
                 </Link>
               </li>
@@ -146,16 +149,40 @@ export default function HostPage() {
   )
 }
 
-function SessionBadge({ status }: { status: string }) {
-  // "running" reuses `accent` (the live/nav-indicator color), matching
-  // ui/badge.tsx's own rule — not a new color for the same semantic.
-  const map: Record<string, string> = {
-    idle: "text-text-muted",
-    running: "text-accent",
-    waiting: "text-warning",
-    error: "text-error",
-  }
+// (#113) Glanceable per-session state, shared derivation with the notify
+// watcher so the list and the badge/sound triggers can never disagree about
+// what "needs attention" means. "running"/"waiting" pulse — both are live,
+// ongoing states, matching the pulsing "running" convention established
+// elsewhere (StreamingBox, Badge). "running" reuses `accent` (the live/nav-
+// indicator color) per the design principle; "waiting" is amber (needs YOU,
+// not the agent); "done"/"failed" are the semantic success/error colors.
+const PHASE_LABEL: Record<SessionPhase, string> = {
+  idle: "Idle",
+  waiting: "Waiting for you",
+  running: "Working",
+  done: "Done",
+  failed: "Failed",
+}
+const PHASE_DOT: Record<SessionPhase, string> = {
+  idle: "bg-text-muted",
+  waiting: "bg-warning animate-pulse",
+  running: "bg-accent animate-pulse",
+  done: "bg-success",
+  failed: "bg-error",
+}
+const PHASE_TEXT: Record<SessionPhase, string> = {
+  idle: "text-text-muted",
+  waiting: "text-warning",
+  running: "text-accent",
+  done: "text-success",
+  failed: "text-error",
+}
+
+function SessionPhaseIndicator({ phase }: { phase: SessionPhase }) {
   return (
-    <span className={`shrink-0 text-caption ${map[status] ?? "text-text-muted"}`}>{status}</span>
+    <span className="flex shrink-0 items-center gap-1.5 text-caption">
+      <span className={`h-1.5 w-1.5 rounded-full ${PHASE_DOT[phase]}`} />
+      <span className={PHASE_TEXT[phase]}>{PHASE_LABEL[phase]}</span>
+    </span>
   )
 }

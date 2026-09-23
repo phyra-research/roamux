@@ -1,3 +1,4 @@
+import { NotifyWatcher } from "@/components/notify-watcher"
 import { PwaRegistrar } from "@/components/pwa-registrar"
 import { ReconnectingBanner } from "@/components/reconnecting-banner"
 import { RelayProvider } from "@/lib/relay-provider"
@@ -33,6 +34,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PwaRegistrar />
         <RelayProvider>
+          {/* Renders nothing — observes relay state globally so a background
+              badge/sound/notification fires regardless of which page is open,
+              not just the specific session that changed (#113). */}
+          <NotifyWatcher />
           <div className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col">
             <ReconnectingBanner />
             {children}

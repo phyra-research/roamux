@@ -72,3 +72,22 @@ self.addEventListener("fetch", (event) => {
     }),
   )
 })
+
+// Tapping a notify.ts-shown notification (#113) should land on the session
+// it's about, not just reopen the app root — focus an existing tab and
+// navigate it, or open a fresh one if none exist.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  const url = event.notification.data?.url ?? "/"
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          if ("navigate" in client) client.navigate(url)
+          return client.focus()
+        }
+      }
+      return self.clients.openWindow(url)
+    }),
+  )
+})
