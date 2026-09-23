@@ -16,7 +16,18 @@ import {
   serialize,
 } from "@openremote/protocol"
 import type { RealtimeCtor } from "@openremote/protocol"
-import type { ConnectionStatus, DiffView, PendingPermission, TimelineEntry } from "./types"
+import type {
+  ConnectionStatus,
+  DiffView,
+  PendingCommand,
+  PendingCommandKind,
+  PendingPermission,
+  TimelineEntry,
+} from "./types"
+
+/** How long an optimistically-sent command waits for inferred confirmation
+ * before it's surfaced as failed (#111). */
+const PENDING_COMMAND_TIMEOUT_MS = 10_000
 
 /** How the client reaches the host: via the local relay WS, or via Ably. */
 export type ClientTransportConfig =
@@ -43,6 +54,8 @@ export type RelayState = {
   diffs: Record<string, DiffView>
   /** Host capabilities for the New Session picker (approved projects + harnesses). */
   capabilities: HostCapabilities | null
+  /** id → optimistically-tracked command (#111), across all sessions. */
+  pendingCommands: Record<string, PendingCommand>
 }
 
 const EMPTY: RelayState = {
@@ -55,6 +68,7 @@ const EMPTY: RelayState = {
   permissions: {},
   diffs: {},
   capabilities: null,
+  pendingCommands: {},
 }
 
 /** The initial (pre-connect) snapshot, exported for the provider's fallback. */
@@ -74,6 +88,8 @@ export class RelayClient {
   private listeners = new Set<() => void>()
   private clientId: string
   private wantConnected = false
+  /** id → timeout handle, so a resolved/retried command's stale timeout never fires. */
+  private pendingTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(private readonly config: ClientTransportConfig) {
     this.clientId = readClientId()
@@ -234,9 +250,95 @@ export class RelayClient {
     this.send({ kind: "command", command })
   }
 
+  /**
+   * Send a command with optimistic client-side tracking (#111): recorded as
+   * "pending" immediately, flipped to "confirmed" once inferred from
+   * subsequent session state (see applyEvent/updateSessionStatus), or
+   * "failed" — either right away if the transport is dead, or after
+   * PENDING_COMMAND_TIMEOUT_MS with no confirming activity.
+   */
+  sendCommandOptimistic(
+    command: RemoteCommand,
+    opts: { kind: PendingCommandKind; text?: string },
+  ): string {
+    const id = newId()
+    const pending: PendingCommand = {
+      id,
+      sessionId: commandSessionId(command),
+      kind: opts.kind,
+      command,
+      status: "pending",
+      createdAt: Date.now(),
+      text: opts.text,
+    }
+    this.setPendingCommand(pending)
+    const sent = this.send({ kind: "command", command })
+    if (sent) this.armTimeout(id)
+    else this.setPendingCommand({ ...pending, status: "failed" })
+    return id
+  }
+
+  /** Re-fire a failed optimistic command with the same tracking id. */
+  retryCommand(id: string): void {
+    const existing = this.state.pendingCommands[id]
+    if (!existing || existing.status !== "failed") return
+    const retried: PendingCommand = { ...existing, status: "pending", createdAt: Date.now() }
+    this.setPendingCommand(retried)
+    const sent = this.send({ kind: "command", command: existing.command })
+    if (sent) this.armTimeout(id)
+    else this.setPendingCommand({ ...retried, status: "failed" })
+  }
+
+  private setPendingCommand(pending: PendingCommand): void {
+    this.set({ pendingCommands: { ...this.state.pendingCommands, [pending.id]: pending } })
+  }
+
+  private armTimeout(id: string): void {
+    this.clearTimeoutFor(id)
+    const timer = setTimeout(() => {
+      const cmd = this.state.pendingCommands[id]
+      if (cmd?.status === "pending") this.setPendingCommand({ ...cmd, status: "failed" })
+    }, PENDING_COMMAND_TIMEOUT_MS)
+    this.pendingTimers.set(id, timer)
+  }
+
+  private clearTimeoutFor(id: string): void {
+    const timer = this.pendingTimers.get(id)
+    if (timer) {
+      clearTimeout(timer)
+      this.pendingTimers.delete(id)
+    }
+  }
+
+  /** Mark every still-pending command of `kind` for `sessionId` confirmed. */
+  private confirmPending(sessionId: string, kind: PendingCommandKind): void {
+    for (const cmd of Object.values(this.state.pendingCommands)) {
+      if (cmd.sessionId === sessionId && cmd.kind === kind && cmd.status === "pending") {
+        this.clearTimeoutFor(cmd.id)
+        this.setPendingCommand({ ...cmd, status: "confirmed" })
+      }
+    }
+  }
+
+  /** Confirm the pending permission.respond command matching this permissionId. */
+  private confirmPendingPermission(sessionId: string, permissionId: string): void {
+    for (const cmd of Object.values(this.state.pendingCommands)) {
+      if (
+        cmd.sessionId === sessionId &&
+        cmd.kind === "permission" &&
+        cmd.status === "pending" &&
+        cmd.command.type === "permission.respond" &&
+        cmd.command.permissionId === permissionId
+      ) {
+        this.clearTimeoutFor(cmd.id)
+        this.setPendingCommand({ ...cmd, status: "confirmed" })
+      }
+    }
+  }
+
   private send(
     message: { kind: "client.hello"; token: string } | { kind: "command"; command: RemoteCommand },
-  ): void {
+  ): boolean {
     if (!this.transport?.isOpen) {
       // Silent command loss is a recurring source of "nothing happened" bugs —
       // e.g. a page that never opened a connection (a refreshed /session/[id]).
@@ -245,10 +347,11 @@ export class RelayClient {
         "[relay] not connected — dropped outbound",
         message.kind === "command" ? message.command.type : message.kind,
       )
-      return
+      return false
     }
     const env = createEnvelope(message, { deviceId: this.clientId })
     this.transport.send(serialize(env))
+    return true
   }
 
   // ── inbound handling ─────────────────────────────────────────────────────────
@@ -302,6 +405,10 @@ export class RelayClient {
     event: AgentEvent,
   ): void {
     if (!sessionId) return
+
+    // Any event for this session is evidence the host is alive and acting —
+    // the closest thing to an "ack" a pending prompt.send gets (#111).
+    this.confirmPending(sessionId, "prompt")
 
     // diff.snapshot is a request/response payload, not timeline activity — stash
     // it by session for <DiffView> and stop.
@@ -358,6 +465,7 @@ export class RelayClient {
     }
     if (event.type === "permission.resolved") {
       delete permissions[sessionId]
+      this.confirmPendingPermission(sessionId, event.permissionId)
     }
 
     timelines[sessionId] = list
@@ -377,6 +485,10 @@ export class RelayClient {
               ? "running"
               : null
     if (!status) return
+    // A stopped/errored run is the closest signal a pending session.abort
+    // gets to confirmation — "waiting" (e.g. a new permission request) isn't
+    // caused by an abort, so it doesn't count (#111).
+    if (status === "idle" || status === "error") this.confirmPending(sessionId, "abort")
     const sessions = this.state.sessions.map((s) => (s.id === sessionId ? { ...s, status } : s))
     // Autovivify a session row if we get events before a snapshot.
     if (!sessions.some((s) => s.id === sessionId)) {
@@ -384,6 +496,11 @@ export class RelayClient {
     }
     this.set({ sessions })
   }
+}
+
+/** Extract the sessionId a command targets, for the 3 session-scoped variants. */
+function commandSessionId(command: RemoteCommand): string {
+  return "sessionId" in command ? command.sessionId : ""
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────
