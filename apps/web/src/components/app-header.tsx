@@ -3,14 +3,15 @@
 import { useRelay } from "@/lib/relay-provider"
 import Link from "next/link"
 import { GitHubStarButton } from "./github-star-button"
+import { ReconnectingBanner } from "./reconnecting-banner"
 import { StatusPill } from "./status-pill"
 import { UserMenu } from "./user-menu"
 
 export function AppHeader({ back }: { back?: { href: string; label: string } }) {
   const { state } = useRelay()
   return (
-    <header className="sticky top-0 z-10 border-b border-paper-line bg-paper/80 px-4 py-3 shadow-sm backdrop-blur">
-      <div className="flex items-center justify-between">
+    <header className="sticky top-0 z-10 border-b border-paper-line bg-paper/80 shadow-sm backdrop-blur">
+      <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
           {back ? (
             <Link
@@ -41,6 +42,10 @@ export function AppHeader({ back }: { back?: { href: string; label: string } }) 
           <UserMenu />
         </div>
       </div>
+      {/* Part of the sticky header itself (#112) — not the page body — so it
+          stays visible while scrolled instead of scrolling away exactly when
+          it matters most. */}
+      <ReconnectingBanner />
     </header>
   )
 }

@@ -14,11 +14,54 @@ import { use, useEffect, useMemo, useRef, useState } from "react"
 
 const SUGGESTED_PROMPT = "Read README.md and tell me what this project does"
 
+/** Offline prompt queue (#112) — sessionStorage-backed so it survives a
+ * reload during an outage, per-session-scoped so switching sessions doesn't
+ * cross-contaminate. Capped at MAX_QUEUED_PROMPTS to avoid an unbounded
+ * queue if someone keeps typing through a long outage — the oldest queued
+ * prompt is dropped to make room, since by the time a very long outage ends
+ * the earliest draft is the most likely to already be stale. */
+const MAX_QUEUED_PROMPTS = 5
+const QUEUE_KEY_PREFIX = "openremote.queue."
+
+function queueKey(sessionId: string): string {
+  return `${QUEUE_KEY_PREFIX}${sessionId}`
+}
+
+function readQueue(sessionId: string): string[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = window.sessionStorage.getItem(queueKey(sessionId))
+    return raw ? (JSON.parse(raw) as string[]) : []
+  } catch {
+    // Malformed JSON from a previous version, or storage disabled — treat as empty.
+    return []
+  }
+}
+
+function writeQueue(sessionId: string, queue: string[]): void {
+  if (typeof window === "undefined") return
+  try {
+    if (queue.length === 0) window.sessionStorage.removeItem(queueKey(sessionId))
+    else window.sessionStorage.setItem(queueKey(sessionId), JSON.stringify(queue))
+  } catch {
+    // Private-browsing/storage-full edge cases — the queue then only lives
+    // in React state for the rest of this page instance.
+  }
+}
+
+// TODO(#110): once history-snapshot restoration lands (server-side support
+// from #109), this should sendCommand({ type: "history.snapshot", sessionId })
+// to refill the timeline after a reconnect. No-op stub until then — the
+// existing in-memory timeline (never cleared by a disconnect) is what's
+// shown in the meantime.
+function requestHistoryRestore(_sessionId: string): void {}
+
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const sessionId = decodeURIComponent(id)
   const { state, sendCommand } = useRelay()
   const [text, setText] = useState("")
+  const [queuedPrompts, setQueuedPrompts] = useState<string[]>(() => readQueue(sessionId))
   const streamEndRef = useRef<HTMLDivElement>(null)
 
   const session = state.sessions.find((s) => s.id === sessionId)
@@ -33,15 +76,38 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     () => deriveStatusStrip(timeline, items, turns, isRunning),
     [timeline, items, turns, isRunning],
   )
-  // Distinguishes "still connecting/haven't heard about this session yet" from
-  // a genuinely empty timeline — otherwise a slow connection briefly shows
-  // "No activity yet" before the session data has even arrived.
-  const isLoadingSession = state.status !== "connected" || !session
+  // Latches true on the first successful load and never resets — a later
+  // disconnect must NOT swap the real feed back to skeletons (#112). Neither
+  // `timelines` nor `sessions` are cleared by a disconnect, so the already-
+  // loaded content stays valid and visible; the header's reconnecting banner
+  // communicates the drop instead of blanking the screen.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+  useEffect(() => {
+    if (state.status === "connected" && session) setHasLoadedOnce(true)
+  }, [state.status, session])
+  const isLoadingSession = !hasLoadedOnce
 
   // Ask the host for a fresh session list on mount (covers deep links).
   useEffect(() => {
     if (state.status === "connected") sendCommand({ type: "sessions.list" })
   }, [state.status, sendCommand])
+
+  // On becoming connected — first load AND every reconnect — flush anything
+  // queued while offline and kick off history restore (#112). Firing on
+  // first connect too (not just reconnects) is deliberate: a queue left over
+  // in sessionStorage from a reloaded tab should still flush, and history
+  // restore should eventually cover the initial load the same way.
+  const connected = state.status === "connected"
+  useEffect(() => {
+    if (!connected) return
+    requestHistoryRestore(sessionId)
+    setQueuedPrompts((current) => {
+      if (current.length === 0) return current
+      for (const t of current) sendCommand({ type: "prompt.send", sessionId, text: t })
+      writeQueue(sessionId, [])
+      return []
+    })
+  }, [connected, sessionId, sendCommand])
 
   // Auto-scroll to the latest activity.
   const permissionId = permission?.permissionId
@@ -52,7 +118,15 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const send = () => {
     const t = text.trim()
     if (!t) return
-    sendCommand({ type: "prompt.send", sessionId, text: t })
+    if (state.status === "connected") {
+      sendCommand({ type: "prompt.send", sessionId, text: t })
+    } else {
+      setQueuedPrompts((current) => {
+        const next = [...current, t].slice(-MAX_QUEUED_PROMPTS)
+        writeQueue(sessionId, next)
+        return next
+      })
+    }
     setText("")
   }
 
@@ -128,6 +202,12 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       </main>
 
       <footer className="sticky bottom-0 space-y-2 border-t border-paper-line bg-paper/90 px-4 py-3 backdrop-blur">
+        {queuedPrompts.length > 0 ? (
+          <p className="text-caption text-warning">
+            {queuedPrompts.length} prompt{queuedPrompts.length > 1 ? "s" : ""} queued — sending once
+            reconnected
+          </p>
+        ) : null}
         <div className="flex items-end gap-2">
           <textarea
             value={text}
@@ -142,11 +222,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             placeholder="Tell the agent what to do…"
             className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl border border-paper-line bg-paper-surface px-3 py-2.5 text-body text-text outline-none focus:border-accent"
           />
-          <Button
-            variant="primary"
-            onClick={send}
-            disabled={!text.trim() || state.status !== "connected"}
-          >
+          <Button variant="primary" onClick={send} disabled={!text.trim()}>
             Send
           </Button>
         </div>
