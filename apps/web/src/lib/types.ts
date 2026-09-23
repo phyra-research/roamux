@@ -1,4 +1,4 @@
-import type { AgentEvent, ChangedFile } from "@openremote/protocol"
+import type { AgentEvent, ChangedFile, RemoteCommand } from "@openremote/protocol"
 
 /** A single rendered line in a session's live event log. */
 export type TimelineEntry = {
@@ -24,4 +24,24 @@ export type PendingPermission = {
   permissionId: string
   description: string
   tool?: string
+}
+
+export type PendingCommandKind = "prompt" | "abort" | "permission"
+export type PendingCommandStatus = "pending" | "confirmed" | "failed"
+
+/**
+ * A command tracked client-side from the moment it's sent for optimistic UI
+ * feedback (#111). The protocol has no per-command ack, so "confirmed" is
+ * inferred from existing session state (new events, session status flipping,
+ * permission resolution) — never a real server acknowledgement.
+ */
+export type PendingCommand = {
+  id: string
+  sessionId: string
+  kind: PendingCommandKind
+  command: RemoteCommand
+  status: PendingCommandStatus
+  createdAt: number
+  /** Only meaningful for kind "prompt" — the text to echo in the timeline. */
+  text?: string
 }

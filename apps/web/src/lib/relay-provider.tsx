@@ -17,6 +17,7 @@ import {
   RelayClient,
   type RelayState,
 } from "./relay-client"
+import type { PendingCommandKind } from "./types"
 
 const RELAY_URL = process.env.NEXT_PUBLIC_RELAY_URL ?? "ws://127.0.0.1:8787"
 
@@ -25,6 +26,14 @@ type RelayContextValue = {
   pair: (token: string) => void
   unpair: () => void
   sendCommand: (command: RemoteCommand) => void
+  /** Optimistically-tracked send (#111) — returns the pending-command id, or
+   * null if the client isn't ready yet (mirrors the other no-op-until-ready
+   * callbacks below). */
+  sendCommandOptimistic: (
+    command: RemoteCommand,
+    opts: { kind: PendingCommandKind; text?: string },
+  ) => string | null
+  retryCommand: (id: string) => void
   /** Connect to an account host's Ably channel (signed-in flow). */
   connectToHost: (channel: string) => void
 }
@@ -83,11 +92,25 @@ export function RelayProvider({ children }: { children: ReactNode }) {
     (command: RemoteCommand) => client?.sendCommand(command),
     [client],
   )
+  const sendCommandOptimistic = useCallback(
+    (command: RemoteCommand, opts: { kind: PendingCommandKind; text?: string }) =>
+      client?.sendCommandOptimistic(command, opts) ?? null,
+    [client],
+  )
+  const retryCommand = useCallback((id: string) => client?.retryCommand(id), [client])
   const connectToHost = useCallback((channel: string) => client?.connectToHost(channel), [client])
 
   const value = useMemo<RelayContextValue>(
-    () => ({ state, pair, unpair, sendCommand, connectToHost }),
-    [state, pair, unpair, sendCommand, connectToHost],
+    () => ({
+      state,
+      pair,
+      unpair,
+      sendCommand,
+      sendCommandOptimistic,
+      retryCommand,
+      connectToHost,
+    }),
+    [state, pair, unpair, sendCommand, sendCommandOptimistic, retryCommand, connectToHost],
   )
 
   return <RelayContext.Provider value={value}>{children}</RelayContext.Provider>
