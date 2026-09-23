@@ -43,6 +43,10 @@ export type RelayState = {
   diffs: Record<string, DiffView>
   /** Host capabilities for the New Session picker (approved projects + harnesses). */
   capabilities: HostCapabilities | null
+  /** Has this client ever reached "connected" since the current RelayClient
+   * instance was created? Drives the reconnecting banner (#112) — a fresh
+   * connect/pairing attempt shouldn't read as a "reconnect". */
+  everConnected: boolean
 }
 
 const EMPTY: RelayState = {
@@ -55,6 +59,7 @@ const EMPTY: RelayState = {
   permissions: {},
   diffs: {},
   capabilities: null,
+  everConnected: false,
 }
 
 /** The initial (pre-connect) snapshot, exported for the provider's fallback. */
@@ -89,7 +94,11 @@ export class RelayClient {
   getSnapshot = (): RelayState => this.state
 
   private set(patch: Partial<RelayState>): void {
-    this.state = { ...this.state, ...patch }
+    // Centralized so every status-setting call site (hello ack, host-list
+    // merge, account-mode connect, ...) gets this for free (#112) rather than
+    // each one remembering to latch it.
+    const everConnected = this.state.everConnected || patch.status === "connected"
+    this.state = { ...this.state, ...patch, everConnected }
     for (const l of this.listeners) l()
   }
 
