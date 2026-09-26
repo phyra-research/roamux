@@ -15,15 +15,18 @@ import type { Config } from "tailwindcss"
 // sequencing, not a bug in this commit.
 //
 // Ratios computed via the standard WCAG relative-luminance formula against
-// `paper` (#FAF1CA), this theme's page background.
+// `paper` (#FFFFFF), this theme's page background. (Full cream #FAF1CA was too
+// bright/saturated as a whole-page canvas; the page is now clean white and the
+// cream is dropped entirely — a whisper of warmth survives only in the surface
+// tint. Lightening the background only RAISES every text ratio below — no AA risk.)
 //
-//   paper.DEFAULT  #FAF1CA — page background.
-//   paper.surface  #F2E4AC — card/surface background, distinct from the
-//     page for separation (still warm-cream, not a jump to white).
-//   paper.line     #CED0B8 — border. Computed as `text` blended at 18% over
-//     paper (a fixed value, not a runtime opacity — matches how `ink.line`
-//     worked in the dark theme).
-//   text.DEFAULT   #053C65 — body text. 10.05:1 on paper.
+//   paper.DEFAULT  #FFFFFF — page background (clean white; cream was too
+//     bright/saturated to read against as a whole-page canvas).
+//   paper.surface  #F8F7F2 — card/surface background, a whisper of warm grey,
+//     distinct from the white page for separation without glare.
+//   paper.line     #E8E6DF — border, a soft neutral line against the white
+//     page (a fixed value, not a runtime opacity).
+//   text.DEFAULT   #053C65 — body text. ~13:1 on paper (was 10.05:1 on cream).
 //   text.muted     #4F7283 — de-emphasized text. `text` blended at 70% over
 //     paper = 4.54:1, clearing the 4.5:1 normal-text bar for ALL text sizes.
 //     The issue's own suggested ~65% only reaches 3.98:1 (short of 4.5,
@@ -74,9 +77,13 @@ export default {
     extend: {
       colors: {
         paper: {
-          DEFAULT: "#FAF1CA",
-          surface: "#F2E4AC",
-          line: "#CED0B8",
+          // Near-white, barely-warm off-white — full cream (#FAF1CA) as a
+          // whole-page canvas is too bright/saturated to read against. The
+          // cream now lives only as a faint tint; the page reads as clean
+          // white with a warm undertone.
+          DEFAULT: "#FFFFFF",
+          surface: "#F8F7F2",
+          line: "#E8E6DF",
         },
         text: {
           DEFAULT: "#053C65",
