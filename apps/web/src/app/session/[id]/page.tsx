@@ -6,18 +6,46 @@ import { EventLine } from "@/components/event-line"
 import { PermissionCard } from "@/components/permission-card"
 import { StatusStrip, deriveStatusStrip } from "@/components/status-strip"
 import { ToolCallCard, groupTimelineEntries } from "@/components/tool-call"
-import { StreamingBox, TurnBlock, groupIntoTurns } from "@/components/turn"
+import { StreamingBox, type Turn, TurnBlock, groupIntoTurns } from "@/components/turn"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRelay } from "@/lib/relay-provider"
+import type { PendingCommand, PendingCommandKind } from "@/lib/types"
 import { use, useEffect, useMemo, useRef, useState } from "react"
 
 const SUGGESTED_PROMPT = "Read README.md and tell me what this project does"
 
+/** Ordered feed row: a real turn, or a locally-echoed pending prompt (#111)
+ * interleaved by timestamp so a new send lands in the right spot relative to
+ * older turns instead of always pinning to the bottom. */
+type FeedRow =
+  | { kind: "turn"; at: number; turn: Turn }
+  | { kind: "echo"; at: number; pending: PendingCommand }
+
+function turnStartTime(turn: Turn): number {
+  const first = turn.items[0]
+  if (!first) return 0
+  return first.kind === "line" ? first.entry.at : (first.group.startedAt ?? 0)
+}
+
+/** The most recently created pending command of `kind` for this session, if any. */
+function latestPending(
+  pendingCommands: Record<string, PendingCommand>,
+  sessionId: string,
+  kind: PendingCommandKind,
+): PendingCommand | undefined {
+  let latest: PendingCommand | undefined
+  for (const cmd of Object.values(pendingCommands)) {
+    if (cmd.sessionId !== sessionId || cmd.kind !== kind) continue
+    if (!latest || cmd.createdAt > latest.createdAt) latest = cmd
+  }
+  return latest
+}
+
 export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const sessionId = decodeURIComponent(id)
-  const { state, sendCommand } = useRelay()
+  const { state, sendCommand, sendCommandOptimistic, retryCommand } = useRelay()
   const [text, setText] = useState("")
   const streamEndRef = useRef<HTMLDivElement>(null)
 
@@ -38,6 +66,37 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   // "No activity yet" before the session data has even arrived.
   const isLoadingSession = state.status !== "connected" || !session
 
+  // Optimistic command tracking (#111) — derived straight from relay state
+  // each render rather than local refs, so a second send/permission before
+  // the first resolves can never point a button at a stale id.
+  const pendingPrompts = useMemo(
+    () =>
+      Object.values(state.pendingCommands).filter(
+        (p) => p.sessionId === sessionId && p.kind === "prompt",
+      ),
+    [state.pendingCommands, sessionId],
+  )
+  const sendPending = pendingPrompts.reduce<PendingCommand | undefined>(
+    (latest, p) => (!latest || p.createdAt > latest.createdAt ? p : latest),
+    undefined,
+  )
+  const abortPending = latestPending(state.pendingCommands, sessionId, "abort")
+  const permissionPending = permission
+    ? Object.values(state.pendingCommands).find(
+        (p) =>
+          p.kind === "permission" &&
+          p.sessionId === sessionId &&
+          p.command.type === "permission.respond" &&
+          p.command.permissionId === permission.permissionId,
+      )
+    : undefined
+
+  const feedRows = useMemo<FeedRow[]>(() => {
+    const rows: FeedRow[] = turns.map((turn) => ({ kind: "turn", at: turnStartTime(turn), turn }))
+    for (const p of pendingPrompts) rows.push({ kind: "echo", at: p.createdAt, pending: p })
+    return rows.sort((a, b) => a.at - b.at)
+  }, [turns, pendingPrompts])
+
   // Ask the host for a fresh session list on mount (covers deep links).
   useEffect(() => {
     if (state.status === "connected") sendCommand({ type: "sessions.list" })
@@ -47,13 +106,17 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
   const permissionId = permission?.permissionId
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [timeline.length, streaming, permissionId])
+  }, [timeline.length, streaming, permissionId, pendingPrompts.length])
 
   const send = () => {
     const t = text.trim()
     if (!t) return
-    sendCommand({ type: "prompt.send", sessionId, text: t })
+    sendCommandOptimistic({ type: "prompt.send", sessionId, text: t }, { kind: "prompt", text: t })
     setText("")
+  }
+
+  const abort = () => {
+    sendCommandOptimistic({ type: "session.abort", sessionId }, { kind: "abort" })
   }
 
   return (
@@ -76,7 +139,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             <Skeleton className="ml-4 h-24 w-3/4 rounded-2xl" />
             <Skeleton className="h-16 w-full rounded-2xl" />
           </div>
-        ) : timeline.length === 0 && !streaming && !permission ? (
+        ) : timeline.length === 0 && !streaming && !permission && pendingPrompts.length === 0 ? (
           <div className="space-y-3 py-10 text-center">
             <p className="text-body text-text-muted">No activity yet.</p>
             <Button variant="primary" size="sm" onClick={() => setText(SUGGESTED_PROMPT)}>
@@ -87,20 +150,24 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
 
         {isLoadingSession ? null : (
           <>
-            {turns.map((turn) => (
-              <TurnBlock key={turn.key}>
-                {turn.items.map((item) =>
-                  item.kind === "tool-call" ? (
-                    <ToolCallCard key={item.group.key} group={item.group} />
-                  ) : (
-                    <EventLine key={item.entry.key} event={item.entry.event} />
-                  ),
-                )}
-                {turn.open && streaming ? (
-                  <StreamingBox model={session?.model} text={streaming} />
-                ) : null}
-              </TurnBlock>
-            ))}
+            {feedRows.map((row) =>
+              row.kind === "echo" ? (
+                <PromptEcho key={row.pending.id} pending={row.pending} onRetry={retryCommand} />
+              ) : (
+                <TurnBlock key={row.turn.key}>
+                  {row.turn.items.map((item) =>
+                    item.kind === "tool-call" ? (
+                      <ToolCallCard key={item.group.key} group={item.group} />
+                    ) : (
+                      <EventLine key={item.entry.key} event={item.entry.event} />
+                    ),
+                  )}
+                  {row.turn.open && streaming ? (
+                    <StreamingBox model={session?.model} text={streaming} />
+                  ) : null}
+                </TurnBlock>
+              ),
+            )}
 
             {streaming && !lastTurnOpen ? (
               <TurnBlock>
@@ -111,13 +178,18 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             {permission ? (
               <PermissionCard
                 permission={permission}
+                pending={permissionPending}
+                onRetry={retryCommand}
                 onRespond={(response) =>
-                  sendCommand({
-                    type: "permission.respond",
-                    sessionId,
-                    permissionId: permission.permissionId,
-                    response,
-                  })
+                  sendCommandOptimistic(
+                    {
+                      type: "permission.respond",
+                      sessionId,
+                      permissionId: permission.permissionId,
+                      response,
+                    },
+                    { kind: "permission" },
+                  )
                 }
               />
             ) : null}
@@ -146,6 +218,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             variant="primary"
             onClick={send}
             disabled={!text.trim() || state.status !== "connected"}
+            loading={sendPending?.status === "pending"}
           >
             Send
           </Button>
@@ -153,12 +226,56 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
         <Button
           variant="danger"
           className="w-full"
-          onClick={() => sendCommand({ type: "session.abort", sessionId })}
+          onClick={abort}
           disabled={!isRunning}
+          loading={abortPending?.status === "pending"}
         >
           Stop
         </Button>
+        {abortPending?.status === "failed" ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-caption text-error">Stop didn’t go through</span>
+            <Button variant="primary" size="sm" onClick={() => retryCommand(abortPending.id)}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
       </footer>
     </>
+  )
+}
+
+/**
+ * Local echo of a just-sent prompt (#111). The protocol never echoes the
+ * user's own message back, so this is the only place it's ever rendered —
+ * it stays in the feed after confirming (just losing its pending dot), it
+ * doesn't disappear once real agent activity starts.
+ */
+function PromptEcho({
+  pending,
+  onRetry,
+}: {
+  pending: PendingCommand
+  onRetry: (id: string) => void
+}) {
+  return (
+    <div className="space-y-1 text-right">
+      <div className="whitespace-pre-wrap text-body leading-relaxed text-text-muted">
+        {pending.text}
+      </div>
+      {pending.status === "pending" ? (
+        <div className="flex items-center justify-end gap-1.5 text-caption text-text-muted">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-muted" />
+          Sending…
+        </div>
+      ) : pending.status === "failed" ? (
+        <div className="flex items-center justify-end gap-2">
+          <span className="text-caption text-error">Didn’t go through</span>
+          <Button variant="primary" size="sm" onClick={() => onRetry(pending.id)}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
+    </div>
   )
 }
