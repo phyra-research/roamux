@@ -156,9 +156,9 @@ running** — do the [Quick start](#quick-start) first (`roamux login` +
 `roamux host`). Sign in to the MCP client with the **same account** that linked
 the host, or the client will see none of your machines.
 
-**1. Get your host id.** Open **[remote.phyra.ai](https://remote.phyra.ai)**, sign
-in, and copy the id of the machine you want to control from your machines list.
-(A `list_hosts` tool to skip this is on the roadmap.)
+**1. Get your host id.** Easiest: just ask the client *"list my roamux hosts"* —
+the `roamux_list_hosts` tool returns each machine's id + status. (Or copy it from
+your machines list at **[remote.phyra.ai](https://remote.phyra.ai)**.)
 
 **2. Add roamux as a connector in your client:**
 
@@ -198,6 +198,7 @@ run, or "stop that session" to halt it.
 
 | Tool | Does |
 | --- | --- |
+| `roamux_list_hosts` | your linked machines + their ids/status (remote server only) |
 | `roamux_list_sessions` | sessions on a host |
 | `roamux_list_projects` | approved projects + installed agents (valid `start_session` inputs) |
 | `roamux_start_session` | start a session for a project + agent |
