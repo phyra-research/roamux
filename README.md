@@ -135,6 +135,62 @@ Full write-ups, with diagrams, in [docs/architecture.md](docs/architecture.md)
 [docs/beta-architecture.md](docs/beta-architecture.md) (the multi-host, hosted
 design of record).
 
+## Use it from an AI client (MCP)
+
+Besides the web app, roamux exposes its control surface as an **MCP server** —
+so you can drive your hosts straight from an MCP-capable chat client (Claude
+desktop/mobile, ChatGPT, …). The chat app becomes the UI; roamux routes the
+commands to the agent running on your machine. It's **additive** — the web app
+is unchanged, and an MCP client can do only what a browser session can (the same
+small, validated command set).
+
+### How it works
+
+```
+Claude / ChatGPT ──▶ https://remote.phyra.ai/api/mcp ──▶ Ably ──▶ your host ──▶ agent
+     (MCP client)         (roamux MCP server, OAuth)        (scoped per user)
+```
+
+1. **Connect once.** Add the roamux MCP server to your client as a custom/remote
+   connector: **`https://remote.phyra.ai/api/mcp`**. The client auto-discovers
+   the auth flow and opens a sign-in — you log in with your existing roamux
+   (GitHub) account. That's it; no keys to paste.
+2. **The client gets a scoped token.** roamux acts as an OAuth 2.1 server (PKCE)
+   that delegates login to your account, then issues a short-lived token carrying
+   only your user id. Every tool call is scoped to **your** hosts — a token can
+   never reach anyone else's machines. The raw realtime key never leaves roamux.
+3. **Chat to drive your agent.** The client calls roamux tools under the hood.
+
+### What you can say
+
+> "Using roamux, list the projects on host `<hostId>`."
+>
+> "Start a claude-code session on host `<hostId>` in that project and have it fix
+> the failing test."
+>
+> "What's the latest activity on that session?"
+
+> **Finding your `hostId`:** for now, grab it from your machines list in the
+> roamux web app and pass it to the client. (A `list_hosts` tool to skip this is
+> on the roadmap.)
+
+### The tools
+
+| Tool | Does |
+| --- | --- |
+| `roamux_list_sessions` | sessions on a host |
+| `roamux_list_projects` | approved projects + installed agents (valid `start_session` inputs) |
+| `roamux_start_session` | start a session for a project + agent |
+| `roamux_send_prompt` | send an instruction to a session |
+| `roamux_get_activity` | poll a session's recent activity |
+| `roamux_stop_session` | stop a session |
+| `roamux_respond_permission` | allow/deny a permission the agent is waiting on |
+
+There is **no generic "run anything" tool** — the surface mirrors roamux's closed
+command set. A local **stdio** variant (for Claude Desktop on the same machine)
+also ships; see [apps/mcp/README.md](apps/mcp/README.md). Self-hosting the remote
+server: see [DEPLOY.md](DEPLOY.md) + [apps/mcp/REMOTE-DESIGN.md](apps/mcp/REMOTE-DESIGN.md).
+
 ## Repository layout
 
 ```
