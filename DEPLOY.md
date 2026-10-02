@@ -51,9 +51,29 @@ https://github.com/settings/developers → **New OAuth App**:
   | `ABLY_API_KEY` | `<ably key>` | **server-only** — mints browser tokens |
   | `NEXT_PUBLIC_TRANSPORT` | `ably` | browser talks to hosts over Ably |
   | `OPENREMOTE_WEB_URL` | `https://<your-domain>` | used in the device-link URL |
+  | `MCP_TOKEN_SECRET` | `<random 32+ byte string>` | **secret** — signs MCP access tokens (enables the remote MCP server) |
 
   > **Do NOT set `NEXT_PUBLIC_ABLY_API_KEY`** — the browser fetches short-lived
   > scoped tokens from `/api/ably/token`; it never holds the raw key.
+
+### Remote MCP server (connect Claude / ChatGPT to roamux)
+
+The MCP server ships as routes in this same app — no separate deploy. To enable it:
+
+1. Set **`MCP_TOKEN_SECRET`** (any long random string; `openssl rand -hex 32`).
+   Without it, the MCP endpoint returns 503 and the OAuth token step refuses.
+2. **Supabase → Auth → URL Configuration:** the MCP OAuth authorize flow bounces
+   unauthenticated users through `/login` → `/auth/callback`, which is already on
+   your redirect allow-list (step 6 above) — no extra redirect entry needed.
+3. The MCP endpoint is `https://<your-domain>/api/mcp`; clients auto-discover auth
+   via `https://<your-domain>/.well-known/oauth-authorization-server`.
+4. **Add it in Claude** (or any MCP client) as a custom/remote connector pointing
+   at `https://<your-domain>/api/mcp`. The client runs the OAuth flow (register →
+   authorize → token) itself; the user signs in with their existing roamux login.
+
+Security: the MCP access token carries only the roamux userId; the server mints a
+per-user-scoped Ably token per request, so a token can reach only its own user's
+hosts. The raw Ably key never leaves the server. See `apps/mcp/REMOTE-DESIGN.md`.
 
 - Push to the deploy branch → Vercel builds and deploys.
 
