@@ -1,6 +1,20 @@
+import { listHostsForUser } from "@openremote/db"
 import { RoamuxRestClient, TOOLS } from "@openremote/mcp/lib"
 import { NextResponse } from "next/server"
 import { mcpTokenSecret, verifyAccessToken } from "../../../lib/mcp/token"
+
+/**
+ * `roamux_list_hosts` is handled HERE in the route, not in the shared tool set,
+ * because host discovery reads Postgres (which hosts belong to this user) — it is
+ * not an Ably command to a host. The stdio MCP server has no DB, so this tool is
+ * remote-only; every other tool works in both.
+ */
+const LIST_HOSTS_TOOL = {
+  name: "roamux_list_hosts",
+  description:
+    "List the machines (hosts) linked to your roamux account, with their ids, status, and last-seen time. Use a host id from here with the other tools.",
+  inputSchema: { type: "object", properties: {}, required: [] as string[] },
+}
 
 /**
  * Remote MCP endpoint (Streamable HTTP, JSON-RPC over POST). This is the "second
@@ -94,15 +108,34 @@ export async function POST(req: Request) {
 
     case "tools/list":
       return rpcResult(id, {
-        tools: TOOLS.map((t) => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: zodObjectToJsonSchema(t.inputSchema),
-        })),
+        tools: [
+          LIST_HOSTS_TOOL,
+          ...TOOLS.map((t) => ({
+            name: t.name,
+            description: t.description,
+            inputSchema: zodObjectToJsonSchema(t.inputSchema),
+          })),
+        ],
       })
 
     case "tools/call": {
       const p = (params ?? {}) as { name?: string; arguments?: Record<string, unknown> }
+
+      // Host discovery is DB-backed (route-only), not an Ably command.
+      if (p.name === LIST_HOSTS_TOOL.name) {
+        const hosts = await listHostsForUser(userId)
+        const summary = hosts.map((h) => ({
+          hostId: h.id,
+          name: h.name,
+          status: h.status,
+          lastSeenAt: h.lastSeenAt,
+          platform: h.platform,
+        }))
+        return rpcResult(id, {
+          content: [{ type: "text", text: JSON.stringify(summary, null, 2) }],
+        })
+      }
+
       const tool = TOOLS.find((t) => t.name === p.name)
       if (!tool) return rpcError(id, -32602, `unknown tool: ${p.name}`)
       const parsed = tool.inputSchema.safeParse(p.arguments ?? {})
