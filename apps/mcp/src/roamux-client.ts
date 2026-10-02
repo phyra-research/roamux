@@ -82,20 +82,43 @@ export class RoamuxClient {
     }
   }
 
-  /** Send one command on a channel and collect decoded replies for `windowMs`. */
+  /**
+   * Send one command and collect decoded replies.
+   *
+   * If `awaitKind` is given, resolve as soon as a reply of that kind arrives
+   * (with `fallbackMs` as a hard cap). This matters because some host replies
+   * are slow: `projects.list` runs `isInstalled()` harness probes (spawns
+   * `claude --version` etc.), which can exceed a fixed window — a plain timer
+   * would return empty before the snapshot lands. Reply-driven waiting fixes
+   * that and makes fast replies (sessions.list) return immediately.
+   *
+   * Without `awaitKind` (e.g. prompt → streamed events), we drain the window.
+   */
   private async sendAndCollect(
     channel: string,
     command: RemoteCommand,
-    windowMs = this.windowMs,
+    opts: { awaitKind?: RelayToClient["kind"]; windowMs?: number; fallbackMs?: number } = {},
   ): Promise<RelayToClient[]> {
+    const windowMs = opts.windowMs ?? this.windowMs
+    // Harness probing can be slow; give reply-driven waits a generous cap.
+    const fallbackMs = opts.fallbackMs ?? 15000
     return this.withChannel(channel, (t) => {
       return new Promise<RelayToClient[]>((resolve) => {
         const received: RelayToClient[] = []
+        // Holder so `done` can clear the timer while both stay `const`.
+        const timer: { id?: ReturnType<typeof setTimeout> } = {}
+        const done = () => {
+          if (timer.id) clearTimeout(timer.id)
+          off()
+          resolve(received)
+        }
         const off = t.onMessage((frame) => {
           const parsed = parseWith(RelayToClientEnvelopeSchema, frame)
-          if (parsed.ok) received.push(parsed.value.message)
+          if (!parsed.ok) return
+          received.push(parsed.value.message)
+          // Resolve the moment the awaited reply kind shows up.
+          if (opts.awaitKind && parsed.value.message.kind === opts.awaitKind) done()
         })
-        // Send once the pipe is open; if already open, send now.
         const fire = () => {
           const env = createEnvelope(
             { kind: "command" as const, command },
@@ -105,10 +128,7 @@ export class RoamuxClient {
         }
         if (t.isOpen) fire()
         else t.onOpen(fire)
-        setTimeout(() => {
-          off()
-          resolve(received)
-        }, windowMs)
+        timer.id = setTimeout(done, opts.awaitKind ? fallbackMs : windowMs)
       })
     })
   }
@@ -135,7 +155,11 @@ export class RoamuxClient {
   /** Ask a host for its current sessions. */
   async listSessions(hostId: string): Promise<AgentSession[]> {
     const channel = controlChannel(hostId, this.userId)
-    const msgs = await this.sendAndCollect(channel, { type: "sessions.list" })
+    const msgs = await this.sendAndCollect(
+      channel,
+      { type: "sessions.list" },
+      { awaitKind: "sessions.snapshot" },
+    )
     const snap = lastOfKind(msgs, "sessions.snapshot")
     return snap?.sessions ?? []
   }
@@ -143,7 +167,11 @@ export class RoamuxClient {
   /** Ask a host for its approved projects + installed harnesses. */
   async listProjects(hostId: string): Promise<HostCapabilities | null> {
     const channel = controlChannel(hostId, this.userId)
-    const msgs = await this.sendAndCollect(channel, { type: "projects.list" })
+    const msgs = await this.sendAndCollect(
+      channel,
+      { type: "projects.list" },
+      { awaitKind: "projects.snapshot" },
+    )
     const snap = lastOfKind(msgs, "projects.snapshot")
     return snap?.capabilities ?? null
   }
@@ -156,12 +184,16 @@ export class RoamuxClient {
     initialPrompt?: string,
   ): Promise<AgentSession[]> {
     const channel = controlChannel(hostId, this.userId)
-    const msgs = await this.sendAndCollect(channel, {
-      type: "session.create",
-      projectId,
-      harnessType,
-      ...(initialPrompt ? { initialPrompt } : {}),
-    })
+    const msgs = await this.sendAndCollect(
+      channel,
+      {
+        type: "session.create",
+        projectId,
+        harnessType,
+        ...(initialPrompt ? { initialPrompt } : {}),
+      },
+      { awaitKind: "sessions.snapshot" },
+    )
     const snap = lastOfKind(msgs, "sessions.snapshot")
     return snap?.sessions ?? []
   }
