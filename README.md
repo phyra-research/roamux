@@ -144,35 +144,55 @@ commands to the agent running on your machine. It's **additive** — the web app
 is unchanged, and an MCP client can do only what a browser session can (the same
 small, validated command set).
 
-### How it works
-
 ```
 Claude / ChatGPT ──▶ https://remote.phyra.ai/api/mcp ──▶ Ably ──▶ your host ──▶ agent
      (MCP client)         (roamux MCP server, OAuth)        (scoped per user)
 ```
 
-1. **Connect once.** Add the roamux MCP server to your client as a custom/remote
-   connector: **`https://remote.phyra.ai/api/mcp`**. The client auto-discovers
-   the auth flow and opens a sign-in — you log in with your existing roamux
-   (GitHub) account. That's it; no keys to paste.
-2. **The client gets a scoped token.** roamux acts as an OAuth 2.1 server (PKCE)
-   that delegates login to your account, then issues a short-lived token carrying
-   only your user id. Every tool call is scoped to **your** hosts — a token can
-   never reach anyone else's machines. The raw realtime key never leaves roamux.
-3. **Chat to drive your agent.** The client calls roamux tools under the hood.
+### Step by step
 
-### What you can say
+**Before you start:** you need a roamux account and **a host already linked and
+running** — do the [Quick start](#quick-start) first (`roamux login` +
+`roamux host`). Sign in to the MCP client with the **same account** that linked
+the host, or the client will see none of your machines.
 
-> "Using roamux, list the projects on host `<hostId>`."
->
-> "Start a claude-code session on host `<hostId>` in that project and have it fix
-> the failing test."
->
-> "What's the latest activity on that session?"
+**1. Get your host id.** Open **[remote.phyra.ai](https://remote.phyra.ai)**, sign
+in, and copy the id of the machine you want to control from your machines list.
+(A `list_hosts` tool to skip this is on the roadmap.)
 
-> **Finding your `hostId`:** for now, grab it from your machines list in the
-> roamux web app and pass it to the client. (A `list_hosts` tool to skip this is
-> on the roadmap.)
+**2. Add roamux as a connector in your client:**
+
+- **Claude** (Settings → **Connectors** → **Add custom connector**):
+  - URL: **`https://remote.phyra.ai/api/mcp`**
+  - Save. Claude opens a sign-in window — **log in with the same roamux (GitHub)
+    account** as your host. No keys to paste.
+- **ChatGPT** (Settings → **Connectors** → **Create** / add MCP server):
+  - URL: **`https://remote.phyra.ai/api/mcp`**, auth: **OAuth** → sign in.
+- Any other MCP client: add a **remote/HTTP MCP server** at that URL; it
+  auto-discovers the OAuth flow.
+
+**3. Chat to drive your agent.** In a new conversation, try — pasting your real
+host id:
+
+```text
+Using roamux, list the projects on host <your-host-id>.
+```
+
+then:
+
+```text
+Start a claude-code session on that host in the roamux-demo project, and have it
+create a file hello.txt that says "hello from Claude". Then show me the activity.
+```
+
+The agent runs on **your** machine and writes the file there — you're steering it
+from the chat app. Follow up with "what's the latest activity?" to watch a long
+run, or "stop that session" to halt it.
+
+> **Nothing came back / "no projects"?** Almost always an account mismatch — the
+> client is signed into a different roamux account than the one that linked the
+> host. Confirm the host appears in your machines list at remote.phyra.ai **under
+> the same account you used in the client**, and that the host is running.
 
 ### The tools
 
