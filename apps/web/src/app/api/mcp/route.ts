@@ -113,8 +113,14 @@ export async function POST(req: Request) {
         return rpcError(id, -32602, parsed.error.issues.map((i) => i.message).join("; "))
       }
       try {
+        // TEMP DIAGNOSTIC (remove after MCP e2e verified): what user + args is
+        // the live route actually calling the tool with?
+        console.log(
+          `[mcp-diag] tool=${p.name} userId=${userId} args=${JSON.stringify(parsed.data)}`,
+        )
         const client = makeClient(userId)
         const result = await tool.handle(client, parsed.data)
+        console.log(`[mcp-diag] tool=${p.name} result=${JSON.stringify(result).slice(0, 300)}`)
         return rpcResult(id, result)
       } catch (err) {
         return rpcResult(id, {
