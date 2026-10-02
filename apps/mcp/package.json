@@ -1,0 +1,23 @@
+{
+  "name": "@openremote/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "roamux-mcp": "src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "build": "echo 'run with bun (no bundle step)'"
+  },
+  "dependencies": {
+    "@openremote/protocol": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "ably": "^2.28.0",
+    "zod": "^3.24.1"
+  }
+}
