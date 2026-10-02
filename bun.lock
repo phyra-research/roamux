@@ -56,6 +56,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@openremote/db": "workspace:*",
+        "@openremote/mcp": "workspace:*",
         "@openremote/protocol": "workspace:*",
         "@supabase/ssr": "^0.5.2",
         "@supabase/supabase-js": "^2.47.0",

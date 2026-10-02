@@ -21,10 +21,17 @@ function LoginInner() {
       return
     }
     setBusy(true)
+    // Preserve a post-login destination (e.g. the MCP OAuth authorize URL) so
+    // deep-linked sign-ins return where they started. Only same-origin relative
+    // paths are forwarded — never an absolute URL (open-redirect guard).
+    const rawNext = params.get("next")
+    const next = rawNext?.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null
+    const callback = new URL(`${window.location.origin}/auth/callback`)
+    if (next) callback.searchParams.set("next", next)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "github",
       // Redirect back through our callback on whatever origin we're served from.
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: callback.toString() },
     })
     if (error) {
       setErr(error.message)

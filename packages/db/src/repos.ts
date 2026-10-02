@@ -251,3 +251,104 @@ export async function hostCredentialIsValid(
   `
   return rows.length > 0
 }
+
+// ── MCP OAuth (remote-auth state) ─────────────────────────────────────────────
+// roamux as a thin OAuth authorization server for the MCP endpoint. Login is
+// delegated to Supabase; these tables hold only OAuth plumbing (registered
+// clients + one-time PKCE codes) — never Ably keys or file content.
+
+export type OAuthClientRow = {
+  id: string
+  clientId: string
+  clientName: string | null
+  redirectUris: string[]
+  createdAt: Date
+}
+
+const OAUTH_CLIENT_COLS = `
+  id, client_id AS "clientId", client_name AS "clientName",
+  redirect_uris AS "redirectUris", created_at AS "createdAt"
+`
+
+/** Register a dynamic OAuth client (RFC 7591). Public client — PKCE, no secret. */
+export async function createOAuthClient(
+  input: { clientId: string; clientName?: string | null; redirectUris: string[] },
+  sql: Sql = db(),
+): Promise<OAuthClientRow> {
+  const rows = await sql`
+    INSERT INTO oauth_clients (client_id, client_name, redirect_uris)
+    VALUES (${input.clientId}, ${input.clientName ?? null}, ${sql.json(input.redirectUris)})
+    RETURNING ${sql.unsafe(OAUTH_CLIENT_COLS)}
+  `
+  return rows[0] as OAuthClientRow
+}
+
+/** Look up a registered client by its client_id. */
+export async function getOAuthClient(
+  clientId: string,
+  sql: Sql = db(),
+): Promise<OAuthClientRow | null> {
+  const rows = await sql`
+    SELECT ${sql.unsafe(OAUTH_CLIENT_COLS)} FROM oauth_clients WHERE client_id = ${clientId}
+  `
+  return (rows[0] as OAuthClientRow | undefined) ?? null
+}
+
+export type OAuthCodeRow = {
+  id: string
+  code: string
+  clientId: string
+  userId: string
+  redirectUri: string
+  codeChallenge: string
+  codeChallengeMethod: string
+  state: string | null
+  consumed: boolean
+  expiresAt: Date
+}
+
+const OAUTH_CODE_COLS = `
+  id, code, client_id AS "clientId", user_id AS "userId",
+  redirect_uri AS "redirectUri", code_challenge AS "codeChallenge",
+  code_challenge_method AS "codeChallengeMethod", state, consumed,
+  expires_at AS "expiresAt"
+`
+
+/** Issue a one-time authorization code, bound to the user + PKCE challenge. */
+export async function createOAuthCode(
+  input: {
+    code: string
+    clientId: string
+    userId: string
+    redirectUri: string
+    codeChallenge: string
+    codeChallengeMethod?: string
+    state?: string | null
+  },
+  sql: Sql = db(),
+): Promise<void> {
+  await sql`
+    INSERT INTO oauth_codes
+      (code, client_id, user_id, redirect_uri, code_challenge, code_challenge_method, state)
+    VALUES (
+      ${input.code}, ${input.clientId}, ${input.userId}, ${input.redirectUri},
+      ${input.codeChallenge}, ${input.codeChallengeMethod ?? "S256"}, ${input.state ?? null}
+    )
+  `
+}
+
+/**
+ * Atomically consume a valid, unconsumed, unexpired code and return it. Uses a
+ * conditional UPDATE so a code can never be exchanged twice (OAuth 2.1).
+ */
+export async function consumeOAuthCode(
+  code: string,
+  sql: Sql = db(),
+): Promise<OAuthCodeRow | null> {
+  const rows = await sql`
+    UPDATE oauth_codes SET consumed = true
+    WHERE code = ${code} AND consumed = false AND expires_at > now()
+    RETURNING ${sql.unsafe(OAUTH_CODE_COLS)}
+  `
+  return (rows[0] as OAuthCodeRow | undefined) ?? null
+}
