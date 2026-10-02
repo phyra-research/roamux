@@ -1,5 +1,5 @@
 import { z } from "zod"
-import type { RoamuxClient } from "./roamux-client.js"
+import type { RoamuxClientLike } from "./client-interface.js"
 
 /**
  * MCP tool definitions for roamux. Each tool is a thin wrapper that validates
@@ -19,7 +19,7 @@ export type ToolDef = {
   name: string
   description: string
   inputSchema: z.ZodObject<z.ZodRawShape>
-  handle: (client: RoamuxClient, args: Record<string, unknown>) => Promise<ToolResult>
+  handle: (client: RoamuxClientLike, args: Record<string, unknown>) => Promise<ToolResult>
 }
 
 const ok = (data: unknown): ToolResult => ({
