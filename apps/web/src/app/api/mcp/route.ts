@@ -1,5 +1,4 @@
-import { RoamuxClient, TOOLS, ablyTransportFactory } from "@openremote/mcp/lib"
-import { LOCAL_USER } from "@openremote/protocol"
+import { RoamuxRestClient, TOOLS } from "@openremote/mcp/lib"
 import { NextResponse } from "next/server"
 import { mcpTokenSecret, verifyAccessToken } from "../../../lib/mcp/token"
 
@@ -59,16 +58,14 @@ async function resolveUserId(req: Request): Promise<string | null> {
   return verifyAccessToken(m[1]!, secret)
 }
 
-function makeClient(userId: string): RoamuxClient {
+function makeClient(userId: string): RoamuxRestClient {
   const key = process.env.ABLY_API_KEY
   if (!key) throw new Error("ABLY_API_KEY is not set")
-  // Server-side client: it holds the key, but every channel is scoped to the
-  // Bearer-verified userId, so it can only reach that user's hosts.
-  return new RoamuxClient({
-    userId,
-    activityWindowMs: 2500,
-    transportFactory: ablyTransportFactory(key, `mcp:${userId}`),
-  })
+  // REST client — this route is a short-lived serverless function, where Ably
+  // Realtime (WebSocket) does not reliably connect; REST publish + history does.
+  // Every channel is scoped to the Bearer-verified userId, so it can only reach
+  // that user's hosts.
+  return new RoamuxRestClient({ apiKey: key, userId, deviceId: `mcp:${userId}` })
 }
 
 export async function POST(req: Request) {
@@ -113,14 +110,8 @@ export async function POST(req: Request) {
         return rpcError(id, -32602, parsed.error.issues.map((i) => i.message).join("; "))
       }
       try {
-        // TEMP DIAGNOSTIC (remove after MCP e2e verified): what user + args is
-        // the live route actually calling the tool with?
-        console.log(
-          `[mcp-diag] tool=${p.name} userId=${userId} args=${JSON.stringify(parsed.data)}`,
-        )
         const client = makeClient(userId)
         const result = await tool.handle(client, parsed.data)
-        console.log(`[mcp-diag] tool=${p.name} result=${JSON.stringify(result).slice(0, 300)}`)
         return rpcResult(id, result)
       } catch (err) {
         return rpcResult(id, {
@@ -141,10 +132,6 @@ export async function GET(req: Request) {
   if (!userId) return unauthorized(req)
   return NextResponse.json({ name: "roamux", version: "0.1.0", protocolVersion: PROTOCOL_VERSION })
 }
-
-// why: the dev-auth fallback uses LOCAL_USER elsewhere; referenced here to keep
-// the import meaningful if token minting is disabled in local dev.
-void LOCAL_USER
 
 /**
  * Minimal Zod-object → JSON Schema for tool inputs. Covers the shapes our tools
