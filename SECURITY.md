@@ -29,6 +29,9 @@ Security-relevant areas include, but are not limited to:
 - the **protocol** (`packages/protocol`) — envelope validation, the command
   allowlist, channel scoping,
 - **authentication and token issuance** (the web API in `apps/web`),
+- the **remote MCP server** (`apps/mcp`, `apps/web/app/api/mcp`) — its OAuth 2.1
+  flow (dynamic registration, PKCE), the roamux-signed access token, and that a
+  token resolves to exactly one user and can reach only that user's hosts,
 - the **transport** layer and cross-user isolation.
 
 The design invariants we consider load-bearing (see
@@ -38,8 +41,10 @@ The design invariants we consider load-bearing (see
 - the host **dials out** — nothing local is exposed via an inbound port;
 - routing is authenticated and **scoped per user** — no cross-account access;
 - there is **no arbitrary remote shell**; clients send a small set of explicit,
-  validated commands, never shell strings or filesystem paths;
-- repos, credentials, env vars, and model keys **never cross the wire**.
+  validated commands, never shell strings or filesystem paths — this holds for
+  the MCP tools too (they mirror the same closed command set, no "run anything");
+- repos, credentials, env vars, and model keys **never cross the wire** — an MCP
+  access token carries only a userId, never an Ably key or a Supabase token.
 
 A report that demonstrates a break in any of these is especially valuable.
 

@@ -401,7 +401,30 @@ would add weight without earning it at this stage.
 
 ---
 
-## 10. Where to look in the code
+## 10. The MCP server (a second client, added after V0)
+
+The web UI is not the only client. roamux also ships an **MCP server** so any
+MCP-capable app (Claude, ChatGPT, …) can drive a user's hosts. This is purely
+**additive** and a clean demonstration of the client ⇔ protocol seam: the MCP
+server sends the exact same Zod-validated `RemoteCommand` envelopes over the same
+per-user channels the browser uses — **no host, protocol, or adapter changes**.
+
+- **`apps/mcp`** — the tool definitions + a `RoamuxClient` (Realtime) for the
+  stdio server, and a `RoamuxRestClient` (Ably **REST**, used by the serverless
+  route — Realtime/WebSocket does not reliably connect in a short-lived serverless
+  invocation). Both satisfy one `RoamuxClientLike` interface, so the tools are
+  transport-agnostic.
+- **`apps/web/src/app/api/mcp`** — the hosted, remote MCP endpoint + its OAuth 2.1
+  authorization server (delegates login to Supabase, issues a roamux-signed,
+  per-user-scoped access token). The token carries only the userId; every channel
+  is built from that verified id, so a client can reach only its own hosts.
+- The tool surface **mirrors the closed `RemoteCommand` set** — there is no
+  generic "run anything" tool, so the §2 trust boundaries are unchanged.
+
+Full design: [`../apps/mcp/REMOTE-DESIGN.md`](../apps/mcp/REMOTE-DESIGN.md);
+connect steps: [`../README.md`](../README.md) → "Use it from an AI client (MCP)".
+
+## 11. Where to look in the code
 
 | To understand… | Read… |
 |---|---|
@@ -413,6 +436,7 @@ would add weight without earning it at this stage.
 | Command dispatch | `apps/host/src/command-handler.ts` |
 | The end-to-end proof | `apps/host/src/e2e.test.ts` |
 | The client store | `apps/web/src/lib/relay-client.ts` |
+| The MCP server (tools + clients) | `apps/mcp/src/`, `apps/web/src/app/api/mcp/` |
 
 See also [`../README.md`](../README.md) for how to run everything and
 [`../CLAUDE.md`](../CLAUDE.md) for the contributor working agreement.

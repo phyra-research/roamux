@@ -8,11 +8,14 @@ touch code. If you are an agent, treat this as a hard constraint, not advice.
 > the clone → install → run → test guide. This file is the *rules*; that one is
 > the *how-to-run*.
 
-> **Status (keep this current):** roamux is **deployed and live** — a
-> multi-host beta at `https://remote.phyra.ai`. Phases P0–P3 have
-> shipped (foundations, Ably transport, accounts+multi-host, agent beta) plus a
-> downloadable CLI. Remaining work is tracked as GitHub issues **#44–#55**
-> (hardening, Phase-4 polish, post-beta). Do not treat this as an unbuilt V0.
+> **Status (keep this current):** roamux is **deployed, live, and open source** —
+> a multi-host product at `https://remote.phyra.ai`, public at
+> `github.com/phyra-research/roamux`. Shipped: foundations, Ably transport,
+> accounts + multi-host, three agent adapters (OpenCode / Claude Code / Codex),
+> a downloadable CLI, a warm light UI theme, and a **remote MCP server** — any
+> MCP client (Claude, ChatGPT) can drive your hosts via OAuth (`apps/mcp` +
+> `apps/web/app/api/mcp`). Do not treat this as an unbuilt V0. Open work is
+> tracked as GitHub issues; check the tracker rather than hardcoding numbers here.
 
 ---
 
@@ -30,8 +33,9 @@ Phone / Browser ─▶ Vercel (web + API)          your machine
       └─────────────── Ably (realtime) ──────────────────┘   (host dials OUT)
 ```
 
-The agent runtime is **OpenCode** (bring-your-own-model). We do **not** implement
-our own coding agent — we drive one through a swappable `HarnessAdapter`.
+The agent runtime is **bring-your-own** — OpenCode, Claude Code, or Codex. We do
+**not** implement our own coding agent; we drive one through a swappable
+`HarnessAdapter` (one host serves one agent, chosen at launch via `AGENT_ADAPTER`).
 
 Two horizons, kept in separate docs — **read them**:
 - [`docs/architecture.md`](docs/architecture.md) — V0 as-built (the local slice).
@@ -150,10 +154,16 @@ apps/
            machine, dials out, owns sessions, heartbeats status. Compiles to a binary.
   relay/   local-dev WebSocket router (Bun.serve). NOT used in prod (Ably replaces it).
   web/     Next.js — mobile-first control UI + the API (app/api/*: hosts, device-auth,
-           ably token minting, heartbeat) + Supabase auth. Deploys to Vercel.
+           ably token minting, heartbeat, + the remote MCP server & its OAuth at
+           app/api/mcp) + Supabase auth. Deploys to Vercel.
+  mcp/     the roamux MCP server — exposes the control surface as MCP tools so any
+           MCP client (Claude, ChatGPT) can drive hosts. Another protocol *client*
+           (no host/protocol changes). stdio (Realtime) + a REST client the web
+           app's /api/mcp route uses in serverless. See apps/mcp/REMOTE-DESIGN.md.
 packages/
   protocol/        Zod envelopes, commands/events, Transport (WS + Ably), channels.
-  agent-adapters/  HarnessAdapter interface + MockAgentAdapter + OpenCodeAdapter.
+  agent-adapters/  HarnessAdapter interface + MockAgentAdapter + OpenCode / Claude
+                   Code / Codex adapters.
   db/              Postgres (postgres.js) schema, migration runner, typed repos.
 supabase/          config.toml + migrations/ (control-plane schema; also prod migrations).
 scripts/           dev orchestration, check.ts, build-cli.ts.
@@ -219,11 +229,10 @@ cd apps/web && bun run build   # the Vercel deploy gate
   - End every commit message with the co-author trailer the human uses.
 - **Opening a PR:** target `main`, give it a descriptive title + a body that says
   what changed, why, and how it was verified. Link issues with `Closes #NN`.
-- **This repo's git trap — the CLI binaries:** `apps/web/public/cli/*` are large
-  (~60–80 MB) committed binaries. Staging them can **OOM-kill `git commit`** and
-  the pre-commit hook chokes on them. For any PR that is *not* deliberately
-  updating the binaries: **restore them out of the diff and commit source only**
-  (`git checkout -- apps/web/public/cli/`). Moving them off git is issue #44.
+- **CLI binaries live in GitHub Releases, not git.** `scripts/build-cli.ts`
+  compiles them to `dist/cli/` (gitignored); they're uploaded as Release assets
+  and `install.sh` pulls from `releases/latest`. Never commit binaries to the
+  repo (the old `apps/web/public/cli/*` trap is gone — don't reintroduce it).
 - The pre-commit hook (`.githooks/pre-commit`, enable with
   `git config core.hooksPath .githooks`) runs `bun run check`. Don't bypass it
   with `--no-verify` unless the human asks or you've already run `check` green

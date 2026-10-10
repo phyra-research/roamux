@@ -136,9 +136,12 @@ deploy gate). A change isn't done until:
 ```
 apps/host    the daemon + `roamux` CLI (login/host). Runs on the user's machine.
 apps/relay   local-dev WebSocket router. NOT used in prod (Ably replaces it).
-apps/web     Next.js UI + API (app/api/*) + Supabase auth. Deploys to Vercel.
+apps/web     Next.js UI + API (app/api/*, incl. the remote MCP server at
+             app/api/mcp) + Supabase auth. Deploys to Vercel.
+apps/mcp     the roamux MCP server — exposes the control surface as MCP tools so
+             any MCP client (Claude, ChatGPT) can drive hosts. Another protocol client.
 packages/protocol        Zod envelopes, commands/events, Transport (WS + Ably), channels.
-packages/agent-adapters  HarnessAdapter + MockAgentAdapter + OpenCodeAdapter.
+packages/agent-adapters  HarnessAdapter + MockAgentAdapter + OpenCode / Claude Code / Codex.
 packages/db              Postgres schema, migration runner, typed repos.
 supabase/migrations      control-plane SQL (single source; local + prod).
 scripts/                 dev orchestration, check.ts, build-cli.ts.
@@ -151,8 +154,9 @@ docs/                    architecture.md (V0) + beta-architecture.md (live desig
   commas), **Zod** at every trust boundary. Full house style in `CLAUDE.md` §7.
 - Branch off `main`; open a PR; keep it green (`bun run check`).
 - Match the surrounding code; comment the *why*, not the *what*.
-- Don't commit the large `apps/web/public/cli/*` binaries in unrelated PRs — they
-  bloat the diff (and can OOM the commit). See issue #44 (moving them off git).
+- Never commit CLI binaries to the repo — they're built to `dist/cli/`
+  (gitignored) and published as GitHub Release assets; `install.sh` pulls from
+  `releases/latest`.
 - Never weaken a security invariant (`CLAUDE.md` §3) silently — flag it in the PR.
 
 Questions or a gnarly area? The architecture docs (`docs/`) and the issue tracker
